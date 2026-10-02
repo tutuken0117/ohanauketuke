@@ -312,6 +312,21 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
 .dbtn.danger{border-color:#e3b3ae;color:var(--shu-dark)}
 .dbtn.wide{grid-column:1/-1}
 .saveinfo{margin-top:10px;font-size:11.5px;color:var(--ink3);text-align:center}
+.archnone{font-size:12.5px;color:var(--ink3);line-height:1.6}
+.archsum{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;background:var(--surface);border-radius:10px;
+  padding:10px 12px;margin-bottom:10px}
+.archsum span{display:block;font-size:11px;letter-spacing:.1em;color:var(--ink3);font-weight:700}
+.archsum b{font-family:var(--num);font-size:18px;font-variant-numeric:tabular-nums}
+.archsum b.all{color:var(--shu)}
+.archsum b.kg{color:var(--ai)}
+.cywa{font-size:15px;font-weight:700;color:var(--shu-dark)}
+/* 名簿の編集行 */
+.cand .mini{flex:0 0 auto;border:1px solid var(--line-strong);border-radius:7px;background:var(--paper);
+  padding:6px 10px;font-size:12.5px;font-weight:700;min-height:40px;color:var(--ink)}
+.cand .mini.ren{margin-left:auto}
+.cand .mini.x{color:var(--shu)}
+.cand .mini.ren + .mini.x{margin-left:0}
+.cand.gone .mini.x{color:var(--ok)}
 
 /* ===== モーダル ===== */
 .modal{position:fixed;inset:0;z-index:70;background:rgba(26,21,18,.55);display:flex;align-items:flex-end;justify-content:center}
@@ -470,13 +485,15 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
       <h3>データ</h3>
       <div class="dbtns">
         <button class="dbtn wide" id="expPdf">PDFで保存<small>番号・地区名・ご芳名・金額・備考＋集計を印字</small></button>
-        <button class="dbtn" id="bkSave">バックアップを保存<small>あとで復元できるファイルを書き出す</small></button>
-        <button class="dbtn" id="bkLoad">バックアップから復元<small>保存したファイルを読み込む</small></button>
-        <input type="file" id="bkFile" accept=".json,application/json" class="hidden">
-        <button class="dbtn wide danger" id="resetBtn">今年のデータを全消去して新年度を開始<small>先にバックアップを保存できます</small></button>
-        <button class="dbtn wide" id="restoreDist">地区・ご芳名リストを初期状態に戻す<small>削除・追加した項目をすべて元に戻します（登録データはそのまま）</small></button>
+        <button class="dbtn wide" id="closeYear">受付を締めて保存<small>年度を付けてアプリ内に残し、次の年の受付を始めます</small></button>
       </div>
       <div class="saveinfo" id="saveInfo"></div>
+    </div>
+
+    <div class="datasec">
+      <h3>過去の記録</h3>
+      <div class="rows hidden" id="archRows"></div>
+      <div class="archnone" id="archEmpty">まだありません。「受付を締めて保存」すると、年度ごとにここへ残ります。</div>
     </div>
   </main>
 
@@ -624,6 +641,21 @@ function learnName(d, n){
   const isNew = !isCustomName(d, n);
   addName(d, n);
   return isNew;
+}
+/* 名簿のご芳名を書き換える。受付中の登録に同じ名前があれば、それも一緒に直す */
+function renameName(d, oldN, newN){
+  if (isCustomName(d, oldN)) removeCustomName(d, oldN);
+  else purgeNames([nkey(d, oldN)]);            /* 元からある名前は消して、新しい名前を足す */
+  learnName(d, newN);
+  let hit = false;
+  records.forEach(function(r){ if (r.dist === d && r.name === oldN){ r.name = newN; hit = true; } });
+  if (hit){ save(); renderList(); renderRecent(); renderBar(); }
+}
+/* 登録の修正・削除で使われなくなった名前を名簿から外す（その登録で覚えた名前に限る） */
+function forgetName(d, n){
+  if (!isCustomName(d, n)) return;
+  if (records.some(function(r){ return r.dist === d && r.name === n; })) return;
+  removeCustomName(d, n);
 }
 function removeCustomName(d, n){
   const a = customN[d] || [], i = a.indexOf(n);
@@ -845,16 +877,17 @@ function stampSave(ok){
   if (!el) return;
   const t = new Date();
   const hh = String(t.getHours()).padStart(2,"0"), mm = String(t.getMinutes()).padStart(2,"0");
-  el.textContent = ok ? ("この端末に自動保存済み ✓  " + hh + ":" + mm + "　（オフラインでも動作します）")
-                      : "⚠ 端末への保存に失敗しました。すぐに「バックアップを保存」してください。";
+  el.textContent = ok ? ("登録のたびにこの端末へ自動保存しています ✓  " + hh + ":" + mm)
+                      : "⚠ 端末への保存に失敗しました。すぐに「PDFで保存」してください。";
   el.style.color = ok ? "" : "var(--shu)";
 }
 
 /* =========================== 集計 =========================== */
-function totals(){
+function totals(list){                  /* 引数なし＝受付中のデータ */
+  const rs = list || records;
   let all = 0, kag = 0, kagN = 0;
-  records.forEach(function(r){ all += r.amt; if (r.kagura){ kag += r.amt; kagN++; } });
-  return {all:all, kagura:kag, normal:all - kag, count:records.length, kaguraCount:kagN, normalCount:records.length - kagN};
+  rs.forEach(function(r){ all += r.amt; if (r.kagura){ kag += r.amt; kagN++; } });
+  return {all:all, kagura:kag, normal:all - kag, count:rs.length, kaguraCount:kagN, normalCount:rs.length - kagN};
 }
 const yen = function(n){ return Number(n||0).toLocaleString("ja-JP"); };
 
@@ -1100,7 +1133,7 @@ function makePicker(grid, cap, getCurrent, onPick, opts){
       if (marked.length){
         const pb = mk("✕にした " + marked.length + " 件を完全に削除", "この画面からも消えます", "purge", function(){
           confirmBox("次の地区を完全に削除します。<br><b>" + marked.map(esc).join("、") + "</b><br>" +
-                     "元に戻すには「登録済み一覧」→データの「地区リストを初期状態に戻す」が必要です。",
+                     "この操作は元に戻せません。",
             "完全に削除する", function(){ purgeHidden(marked); render(); flash("完全に削除しました"); });
         });
         pb.style.gridColumn = "1/-1";
@@ -1208,20 +1241,43 @@ function renderCands(){
   if (editName){
     const note = document.createElement("div");
     note.className = "candnote";
-    note.textContent = "編集中：不要なご芳名を押すと消えます。「戻す」で戻せます。";
+    note.textContent = "編集中：「名前を直す」でその場で書き換え、「✕」で候補から消せます。";
     box.appendChild(note);
 
     list.forEach(function(p){
       const k = nkey(p.dist, p.name);
       const gone = hiddenN.indexOf(k) >= 0;
-      const b2 = document.createElement("button");
-      b2.type = "button"; b2.className = "cand " + (gone ? "gone" : "del");
-      b2.innerHTML = '<span class="badge">' + esc(p.dist) + '</span><span class="nm">' + esc(p.name) + '</span>' +
-                     '<span class="x">' + (gone ? "戻す" : "✕") + '</span>';
-      b2.addEventListener("click", function(){
+      const b2 = document.createElement("div");
+      b2.className = "cand " + (gone ? "gone" : "del");
+      b2.innerHTML = '<span class="nm">' + esc(p.name) + '</span>' +
+                     (gone ? '' : '<button type="button" class="mini ren">名前を直す</button>') +
+                     '<button type="button" class="mini x">' + (gone ? "戻す" : "✕") + '</button>';
+      b2.querySelector(".x").addEventListener("click", function(){
         if (isCustomName(p.dist, p.name)) removeCustomName(p.dist, p.name);
         else toggleHiddenName(p.dist, p.name);
         renderCands();
+      });
+      const rb = b2.querySelector(".ren");
+      if (rb) rb.addEventListener("click", function(){
+        const w = document.createElement("div");
+        w.className = "namein";
+        w.innerHTML = '<input type="text" autocomplete="off"><button type="button" class="ok">保存</button>';
+        b2.replaceWith(w);
+        const inp3 = w.querySelector("input"), okb = w.querySelector(".ok");
+        inp3.value = p.name;
+        const go = function(){
+          const v = inp3.value.trim();
+          if (v && v !== p.name){
+            renameName(p.dist, p.name, v);
+            flash("「" + p.name + "」を「" + v + "」に直しました");
+          }
+          renderCands();
+        };
+        okb.addEventListener("click", go);
+        inp3.addEventListener("keydown", function(e){
+          if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)){ e.preventDefault(); go(); }
+        });
+        inp3.focus();
       });
       box.appendChild(b2);
     });
@@ -1235,7 +1291,7 @@ function renderCands(){
       pb.addEventListener("click", function(){
         confirmBox("次のご芳名を完全に削除します。<br><b>" +
           marked.map(function(k){ return esc(k.split("|")[1]); }).join("、") + "</b><br>" +
-          "元に戻すには「登録済み一覧」→データの「地区・ご芳名リストを初期状態に戻す」が必要です。",
+          "この操作は元に戻せません（必要になったら「＋ ご芳名を追加」で入れ直せます）。",
           "完全に削除する", function(){ purgeNames(marked); renderCands(); flash("完全に削除しました"); });
       });
       box.appendChild(pb);
@@ -1377,6 +1433,7 @@ function submit(){
   nextRno = rec.rno;                         /* 領収番号は領収書の束の番号。束を替えるまで同じ番号を引き継ぐ */
   records.push(rec);
   const learned = (mode === "live") && learnName(rec.dist, rec.name);   /* 練習モードでは名簿を増やさない */
+  if (learned) rec.learned = true;
   save(); renderTotals(); renderRecent(); renderList();
   toast(rec, learned);
   resetForm(true);
@@ -1619,8 +1676,13 @@ function editRecord(id){
           const nm = String(cur.name).trim();
           const am = parseInt(String(cur.amt).replace(/[^0-9]/g, ""), 10);
           if (!nm || !am || am <= 0){ alertBox("ご芳名と金額を入力してください"); return; }
+          const oldD = r.dist, oldN = r.name, wasLearned = !!r.learned;
           r.dist = cur.dist; r.name = nm; r.amt = am; r.kagura = cur.kagura; r.rno = cur.rno;
-          if (mode === "live") learnName(r.dist, r.name);
+          if (mode === "live" && (oldD !== r.dist || oldN !== r.name)){
+            /* 打ち間違いを直したら、間違えて覚えた名前は名簿から外し、正しい名前を覚える */
+            if (wasLearned) forgetName(oldD, oldN);
+            r.learned = learnName(r.dist, r.name);
+          }
           save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderBar();
           flash("No." + no + " を修正しました");
         });
@@ -1629,6 +1691,7 @@ function editRecord(id){
             "削除する", function(){
               const i = records.indexOf(r);
               if (i >= 0) records.splice(i, 1);
+              if (mode === "live" && r.learned) forgetName(r.dist, r.name);
               save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderBar();
               flash("削除しました");
             });
@@ -1653,8 +1716,8 @@ function editRecord(id){
 }
 
 /* =========================== PDF出力 =========================== */
-function rowsForExport(){
-  return records.map(function(r, i){
+function rowsForExport(recs){
+  return recs.map(function(r, i){
     return [i + 1, r.dist, r.name, r.amt, r.kagura ? KAGURA_NOTE : "", r.rno || ""];
   });
 }
@@ -1662,7 +1725,7 @@ function rowsForExport(){
 /* A4縦（595.28×841.89pt）を2倍解像度のcanvasに描き、画像としてPDFに埋め込む。
    端末のフォントで描画するため、どんな漢字・記号でも文字化けしない。 */
 const PW = 1190, PH = 1684, ML = 70, MR = 1120;
-function drawPage(rows, pageNo, pageCount){
+function drawPage(rows, pageNo, pageCount, t, year){
   const c = document.createElement("canvas");
   c.width = PW; c.height = PH;
   const g = c.getContext("2d");
@@ -1671,11 +1734,11 @@ function drawPage(rows, pageNo, pageCount){
   g.fillStyle = "#000"; g.textBaseline = "alphabetic";
   let y;
   if (pageNo === 1){
-    const t = totals(), d = new Date();
+    const d = new Date();
     g.font = "700 46px " + JP;
     g.fillText("御神前・御花一覧", ML, 100);
     g.font = "400 24px " + JP; g.fillStyle = "#444";
-    g.fillText("伊勢神社　秋季奉納神楽　" + d.getFullYear() + "年", ML, 142);
+    g.fillText("伊勢神社　秋季奉納神楽　" + yearLabel(year), ML, 142);
     g.textAlign = "right";
     g.fillText("出力 " + d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " +
                String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), MR, 142);
@@ -1734,7 +1797,6 @@ function drawPage(rows, pageNo, pageCount){
     ry += 38;
   });
   if (pageNo === pageCount){
-    const t = totals();
     g.strokeStyle = "#000"; g.lineWidth = 2;
     g.beginPath(); g.moveTo(ML, ry - 8); g.lineTo(MR, ry - 8); g.stroke();
     g.font = "700 26px " + JP; g.textAlign = "left";
@@ -1760,8 +1822,8 @@ function jpegBytes(canvas){
   for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
   return u;
 }
-function buildPdf(){
-  const all = rowsForExport();
+function buildPdf(recs, year){
+  const all = rowsForExport(recs), t = totals(recs);
   const FIRST = 30, REST = 37;
   const pages = [];
   let i = 0;
@@ -1770,7 +1832,7 @@ function buildPdf(){
     pages.push(all.slice(i, i + n));
     i += n;
   }
-  const imgs = pages.map(function(rows, idx){ return jpegBytes(drawPage(rows, idx + 1, pages.length)); });
+  const imgs = pages.map(function(rows, idx){ return jpegBytes(drawPage(rows, idx + 1, pages.length, t, year)); });
 
   const latin = function(str){
     const u = new Uint8Array(str.length);
@@ -1815,12 +1877,15 @@ function fname(prefix, ext){
   const p = function(n){ return String(n).padStart(2, "0"); };
   return prefix + "_" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + ext;
 }
-async function savePdf(){
-  if (!records.length){ alertBox("登録データがありません"); return; }
+/* 引数なし＝受付中のデータ。過去の記録は (その年の登録, 年度) を渡す */
+async function savePdf(recs, year){
+  recs = recs || records;
+  year = year || new Date().getFullYear();
+  if (!recs.length){ alertBox("登録データがありません"); return; }
   let data;
-  try{ data = buildPdf(); }
+  try{ data = buildPdf(recs, year); }
   catch(e){ alertBox("PDFを作成できませんでした：" + e.message); return; }
-  await saveFile(fname("御花一覧", ".pdf"), data, "application/pdf");
+  await saveFile(fname("御花一覧_" + year + "年", ".pdf"), data, "application/pdf");
 }
 async function saveFile(name, data, type){
   let dl = null;
@@ -1840,57 +1905,127 @@ async function saveFile(name, data, type){
   }catch(e){ alertBox("保存できませんでした。もう一度お試しください。"); }
 }
 
-/* =========================== バックアップ ===========================
-   登録データと地区・ご芳名リストの編集内容を1つのファイルに書き出し、
-   同じ端末でも別の端末でも読み戻せるようにする。                        */
-const BACKUP_APP = "ise_ohana_backup";
-async function saveBackup(){
-  if (!records.length){ alertBox("登録データがありません"); return; }
-  const o = {app:BACKUP_APP, v:1, at:Date.now(), seq:seq, rno:nextRno, records:records,
-             lists:{customD:customD, hiddenD:hiddenD, purgedD:purgedD,
-                    customN:customN, hiddenN:hiddenN, purgedN:purgedN}};
-  await saveFile(fname("御花バックアップ", ".json"), new TextEncoder().encode(JSON.stringify(o)), "application/json");
+/* =========================== 過去の記録 ===========================
+   受付を締めると、その年の登録データに年度を付けて端末に残す（消さない）。
+   「登録済み一覧」タブの下から、年度ごとにいつでも見返せる。           */
+const ARCH_KEY = "ise_ohana_archive_v1";
+let archives = [];       /* {year, records, at} 新しい年度が先 */
+(function(){
+  try{ archives = JSON.parse(localStorage.getItem(ARCH_KEY) || "[]") || []; }catch(e){ archives = []; }
+  if (!Array.isArray(archives)) archives = [];
+  archives = archives.filter(function(a){ return a && typeof a.year === "number" && Array.isArray(a.records); });
+})();
+function saveArch(){
+  try{ localStorage.setItem(ARCH_KEY, JSON.stringify(archives)); return true; }catch(e){ return false; }
 }
-function restoreBackup(file){
-  const fr = new FileReader();
-  fr.onerror = function(){ alertBox("ファイルを読み込めませんでした"); };
-  fr.onload = function(){
-    let o = null;
-    try{ o = JSON.parse(String(fr.result)); }catch(e){ o = null; }
-    if (!o || o.app !== BACKUP_APP || !Array.isArray(o.records)){
-      alertBox("このファイルは御花受付のバックアップではありません"); return;
-    }
-    const recs = [];
-    o.records.forEach(function(r){
-      if (!r || !r.name || typeof r.amt !== "number" || !(r.amt > 0)) return;
-      recs.push({id:0, dist:String(r.dist || "不明"), name:String(r.name), amt:r.amt, kagura:!!r.kagura,
-                 rno:typeof r.rno === "string" ? r.rno : ""});
-    });
-    const sum = recs.reduce(function(a, r){ return a + r.amt; }, 0);
-    const d = new Date(o.at || 0);
-    const when = o.at ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " +
-                 String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")) : "不明";
-    const t = totals();
-    confirmBox("バックアップ（保存日時 " + esc(when) + "）<br><b>" + recs.length + "件・" + yen(sum) + "円</b> を読み込みます。<br>" +
-      "現在の <b>" + t.count + "件・" + yen(t.all) + "円</b> は置き換えられ、元に戻せません。" +
-      (mode === "practice" ? "<br>※練習モードのデータとして読み込みます。" : ""),
-      "復元する", function(){
-        recs.forEach(function(r, i){ r.id = i + 1; });
-        records = recs; seq = recs.length + 1;
-        nextRno = typeof o.rno === "string" ? o.rno : "";
-        const L = o.lists;
-        if (L && typeof L === "object"){
-          const obj = function(x){ return (x && typeof x === "object" && !Array.isArray(x)) ? x : {}; };
-          const arr = function(x){ return Array.isArray(x) ? x : []; };
-          customD = obj(L.customD); hiddenD = arr(L.hiddenD); purgedD = arr(L.purgedD);
-          customN = obj(L.customN); hiddenN = arr(L.hiddenN); purgedN = arr(L.purgedN);
-          saveCustom(); saveHidden(); savePurged(); saveNames();
+function wareki(y){
+  const g = function(name, n){ return name + (n === 1 ? "元" : n) + "年"; };
+  if (y >= 2019) return g("令和", y - 2018);
+  if (y >= 1989) return g("平成", y - 1988);
+  return "";
+}
+function yearLabel(y){ const w = wareki(y); return y + "年" + (w ? "（" + w + "）" : ""); }
+
+function renderArchives(){
+  const box = document.getElementById("archRows");
+  const none = document.getElementById("archEmpty");
+  box.innerHTML = "";
+  archives.forEach(function(a){
+    const t = totals(a.records);
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "row";
+    b.innerHTML = '<span class="mid"><span class="nm">' + esc(yearLabel(a.year)) + '</span>' +
+      '<span class="dt">' + t.count + '件（通常' + t.normalCount + '件・神楽団' + t.kaguraCount + '件）</span></span>' +
+      '<span class="am">' + yen(t.all) + '</span><span class="chev">›</span>';
+    b.addEventListener("click", function(){ viewArchive(a); });
+    box.appendChild(b);
+  });
+  box.classList.toggle("hidden", !archives.length);
+  none.classList.toggle("hidden", archives.length > 0);
+}
+
+function viewArchive(a){
+  const t = totals(a.records);
+  const rows = a.records.map(function(r, i){
+    return '<div class="row"><span class="no">' + (i + 1) + '</span>' +
+      '<span class="mid"><span class="nm">' + esc(r.name) + '</span>' +
+      '<span class="dt">' + (r.rno ? "領収 " + esc(r.rno) + "　" : "") + esc(r.dist) + '</span></span>' +
+      (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
+      '<span class="am">' + yen(r.amt) + '</span></div>';
+  }).join("");
+  openModal('<h2>' + esc(yearLabel(a.year)) + ' の記録</h2>' +
+    '<div class="archsum"><div><span>御花合計</span><b class="all">' + yen(t.all) + '円</b></div>' +
+      '<div><span>通常</span><b>' + yen(t.normal) + '円</b></div>' +
+      '<div><span>神楽団</span><b class="kg">' + yen(t.kagura) + '円</b></div>' +
+      '<div><span>件数</span><b>' + t.count + '件</b></div></div>' +
+    '<div class="rows">' + rows + '</div>' +
+    '<div class="sheet-btns"><button class="b-ghost" data-close="1">閉じる</button>' +
+      '<button class="b-primary" id="aPdf">PDFで保存</button>' +
+      '<button class="b-danger" id="aReopen">この年度を受付中に戻して修正する</button></div>',
+    function(root){
+      root.querySelector("#aPdf").addEventListener("click", function(){ savePdf(a.records, a.year); });
+      root.querySelector("#aReopen").addEventListener("click", function(){
+        if (mode !== "live"){ alertBox("練習モードでは使えません。本番に戻してから操作してください。"); return; }
+        if (records.length){
+          alertBox("受付中のデータが " + records.length + "件あるため戻せません。先に今の受付を締めて保存してください。"); return;
         }
-        save(); renderTotals(); renderList(); renderRecent(); resetForm(false);
-        flash(recs.length + "件を復元しました");
+        confirmBox(esc(yearLabel(a.year)) + " の " + t.count + "件を受付中に戻します。<br>" +
+          "修正が済んだら、もう一度「受付を締めて保存」してください。", "受付中に戻す", function(){
+            const rest = archives.filter(function(x){ return x !== a; });
+            const keep = archives; archives = rest;
+            if (!saveArch()){ archives = keep; alertBox("保存できませんでした。もう一度お試しください。"); return; }
+            records = a.records.map(function(r, i){
+              return {id:i + 1, dist:r.dist, name:r.name, amt:r.amt, kagura:!!r.kagura, rno:r.rno || ""};
+            });
+            seq = records.length + 1; nextRno = "";
+            save(); renderTotals(); renderList(); renderRecent(); renderArchives(); resetForm(false);
+            flash(yearLabel(a.year) + " を受付中に戻しました");
+          });
       });
-  };
-  fr.readAsText(file);
+    });
+}
+
+/* 受付を締める：年度を付けて過去の記録へ移し、受付を空にする */
+function closeYear(){
+  if (mode !== "live"){ alertBox("練習モードのデータは保存できません。本番に戻してから操作してください。"); return; }
+  if (!records.length){ alertBox("登録データがありません"); return; }
+  const t = totals();
+  openModal('<h2>受付を締めて保存</h2>' +
+    '<div class="warnbox">現在の <b>' + t.count + '件・' + yen(t.all) + '円</b> に年度を付けてこの端末に残し、' +
+      '次の年の受付を始められるよう受付中のデータを空にします。<br>残した記録は「過去の記録」からいつでも見られます。</div>' +
+    '<div class="f"><label>年度（西暦）</label>' +
+      '<input id="cyY" type="tel" inputmode="numeric" maxlength="4" value="' + new Date().getFullYear() + '"></div>' +
+    '<div class="cywa" id="cyW"></div>' +
+    '<div class="sheet-btns"><button class="b-ghost" data-close="1">やめる</button>' +
+      '<button class="b-primary" id="cyOk">保存する</button></div>',
+    function(root){
+      const inp = root.querySelector("#cyY"), wl = root.querySelector("#cyW");
+      const yearOf = function(){
+        const y = parseInt(String(inp.value).replace(/[^0-9]/g, ""), 10);
+        return (y >= 1989 && y <= 2100) ? y : 0;
+      };
+      const show = function(){ const y = yearOf(); wl.textContent = y ? yearLabel(y) + " として保存します" : "西暦4桁で入力してください"; };
+      inp.addEventListener("input", show); show();
+      root.querySelector("#cyOk").addEventListener("click", function(){
+        const y = yearOf();
+        if (!y) return;
+        const old = archives.filter(function(x){ return x.year === y; })[0];
+        const run = function(){
+          const keep = archives;
+          archives = archives.filter(function(x){ return x.year !== y; })
+            .concat([{year:y, records:records.slice(), at:Date.now()}])
+            .sort(function(p, q){ return q.year - p.year; });
+          if (!saveArch()){ archives = keep; alertBox("保存できませんでした。PDFで保存してから、もう一度お試しください。"); return; }
+          records = []; seq = 1; nextRno = "";
+          save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderArchives(); resetForm(false);
+          flash(yearLabel(y) + " として保存しました");
+        };
+        if (old){
+          confirmBox("すでに " + esc(yearLabel(y)) + " の記録（" + old.records.length + "件）があります。<br>" +
+            "今回の " + t.count + "件で<b>置き換えます</b>。前の記録は消えます。", "置き換える", run);
+        } else run();
+      });
+    });
 }
 
 /* =========================== モーダル =========================== */
@@ -2061,54 +2196,8 @@ function init(){
     renderList();
   });
 
-  document.getElementById("expPdf").addEventListener("click", savePdf);
-  document.getElementById("bkSave").addEventListener("click", saveBackup);
-  const bkFile = document.getElementById("bkFile");
-  document.getElementById("bkLoad").addEventListener("click", function(){ bkFile.click(); });
-  bkFile.addEventListener("change", function(){
-    const f = bkFile.files && bkFile.files[0];
-    bkFile.value = "";                     /* 同じファイルをもう一度選べるようにする */
-    if (f) restoreBackup(f);
-  });
-
-  document.getElementById("resetBtn").addEventListener("click", function(){
-    const t = totals();
-    openModal('<h2>今年のデータを全消去</h2>' +
-      '<div class="warnbox">現在 <b>' + t.count + '件・' + yen(t.all) + '円</b> が登録されています。<br>' +
-      '消去すると元に戻せません。先にバックアップを保存してください。</div>' +
-      '<div class="dbtns"><button class="dbtn" id="bkPdf">PDFで保存<small>印刷・閲覧用</small></button>' +
-      '<button class="dbtn" id="bkJson">バックアップを保存<small>あとで復元できます</small></button></div>' +
-      '<div class="sheet-btns"><button class="b-ghost" data-close="1">やめる</button>' +
-      '<button class="b-primary" id="doReset">全消去して新年度を開始</button></div>',
-      function(root){
-        root.querySelector("#bkPdf").addEventListener("click", savePdf);
-        root.querySelector("#bkJson").addEventListener("click", saveBackup);
-        root.querySelector("#doReset").addEventListener("click", function(){
-          closeModal();
-          confirmBox("本当に全" + t.count + "件を消去しますか？", "消去する", function(){
-            records = []; seq = 1; nextRno = ""; save();
-            renderTotals(); renderList(); renderRecent(); resetForm(false);
-            flash("データを消去しました");
-          });
-        });
-      });
-  });
-
-  document.getElementById("restoreDist").addEventListener("click", function(){
-    const n = hiddenD.length + purgedD.length + hiddenN.length + purgedN.length;
-    let c = 0;
-    Object.keys(customD).forEach(function(k){ c += (customD[k] || []).length; });
-    Object.keys(customN).forEach(function(k){ c += (customN[k] || []).length; });
-    confirmBox("削除した地区・ご芳名 " + n + "件を元に戻し、追加した " + c + "件を消します。<br>登録済みの御花のデータには影響しません。",
-      "初期状態に戻す", function(){
-        restoreDistricts();
-        customD = {}; saveCustom();
-        restoreNames();
-        if (entryPicker) entryPicker.reset();
-        renderCands();
-        flash("地区リストを初期状態に戻しました");
-      });
-  });
+  document.getElementById("expPdf").addEventListener("click", function(){ savePdf(); });
+  document.getElementById("closeYear").addEventListener("click", closeYear);
 
   document.getElementById("startPractice").addEventListener("click", function(){
     setMode("practice");
@@ -2119,7 +2208,14 @@ function init(){
     setMode("live"); switchTab("entry"); flash("本番モードに戻りました");
   });
 
+  /* 保存は登録・修正のたびに行っている。念のため、アプリを閉じる・裏に回す瞬間にも保存する
+     （iPhoneでは beforeunload が来ないことがあるため pagehide / visibilitychange も見る） */
   window.addEventListener("beforeunload", save);
+  window.addEventListener("pagehide", save);
+  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "hidden") save(); });
+  /* 端末の空き容量が減っても、ブラウザに勝手に消されにくくする */
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
+  renderArchives();
   setMode("live");
   renderBar();
 }
