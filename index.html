@@ -320,6 +320,7 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
 .archsum b.all{color:var(--shu)}
 .archsum b.kg{color:var(--ai)}
 .cywa{font-size:15px;font-weight:700;color:var(--shu-dark)}
+.cyhint{margin-top:10px;font-size:12px;color:var(--ink3);line-height:1.6}
 /* 名簿の編集行 */
 .cand .mini{flex:0 0 auto;border:1px solid var(--line-strong);border-radius:7px;background:var(--paper);
   padding:6px 10px;font-size:12.5px;font-weight:700;min-height:40px;color:var(--ink)}
@@ -485,7 +486,7 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
       <h3>データ</h3>
       <div class="dbtns">
         <button class="dbtn wide" id="expPdf">PDFで保存<small>番号・地区名・ご芳名・金額・備考＋集計を印字</small></button>
-        <button class="dbtn wide" id="closeYear">受付を締めて保存<small>年度を付けてアプリ内に残し、次の年の受付を始めます</small></button>
+        <button class="dbtn wide" id="closeYear">受付を締めて保存<small>年度を付けてアプリ内に残します（バックアップも選べます）</small></button>
       </div>
       <div class="saveinfo" id="saveInfo"></div>
     </div>
@@ -1888,6 +1889,17 @@ async function savePdf(recs, year){
   await saveFile(fname("御花一覧_" + year + "年", ".pdf"), data, "application/pdf");
 }
 async function saveFile(name, data, type){
+  /* iPhoneなどでは共有画面を開く。「"ファイル"に保存」から OneDrive などの保存先フォルダを選べる */
+  let file = null;
+  try{ file = new File([data], name, {type:type}); }catch(e){ file = null; }
+  if (file && isTouch() && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); flash("「" + name + "」を書き出しました"); }
+    catch(e){
+      if (e && e.name === "AbortError") flash("書き出しをやめました");
+      else alertBox("書き出せませんでした。もう一度お試しください。");
+    }
+    return;
+  }
   let dl = null;
   try{ dl = await (window.claude && window.claude.use ? window.claude.use("downloads") : null); }catch(e){ dl = null; }
   if (dl){
@@ -1996,8 +2008,12 @@ function closeYear(){
     '<div class="f"><label>年度（西暦）</label>' +
       '<input id="cyY" type="tel" inputmode="numeric" maxlength="4" value="' + new Date().getFullYear() + '"></div>' +
     '<div class="cywa" id="cyW"></div>' +
-    '<div class="sheet-btns"><button class="b-ghost" data-close="1">やめる</button>' +
-      '<button class="b-primary" id="cyOk">保存する</button></div>',
+    '<div class="sheet-btns">' +
+      '<button class="b-primary" id="cyBk" style="grid-column:1/-1">端末に保存して、バックアップも取る</button>' +
+      '<button class="b-ghost" data-close="1">やめる</button>' +
+      '<button class="b-ghost" id="cyOk">端末のみに保存</button></div>' +
+    '<div class="cyhint">バックアップは一覧のPDFです。共有画面が開いたら「"ファイル"に保存」→ OneDrive →' +
+      '「個人ファイル › 伊勢神社役員」の中の、その年のフォルダを選んでください。</div>',
     function(root){
       const inp = root.querySelector("#cyY"), wl = root.querySelector("#cyW");
       const yearOf = function(){
@@ -2006,25 +2022,28 @@ function closeYear(){
       };
       const show = function(){ const y = yearOf(); wl.textContent = y ? yearLabel(y) + " として保存します" : "西暦4桁で入力してください"; };
       inp.addEventListener("input", show); show();
-      root.querySelector("#cyOk").addEventListener("click", function(){
+      const finish = function(backup){
         const y = yearOf();
         if (!y) return;
         const old = archives.filter(function(x){ return x.year === y; })[0];
         const run = function(){
-          const keep = archives;
+          const keep = archives, recs = records.slice();
           archives = archives.filter(function(x){ return x.year !== y; })
-            .concat([{year:y, records:records.slice(), at:Date.now()}])
+            .concat([{year:y, records:recs, at:Date.now()}])
             .sort(function(p, q){ return q.year - p.year; });
           if (!saveArch()){ archives = keep; alertBox("保存できませんでした。PDFで保存してから、もう一度お試しください。"); return; }
           records = []; seq = 1; nextRno = "";
           save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderArchives(); resetForm(false);
           flash(yearLabel(y) + " として保存しました");
+          if (backup) savePdf(recs, y);     /* 端末への保存が済んでから、バックアップ用のPDFを書き出す */
         };
         if (old){
           confirmBox("すでに " + esc(yearLabel(y)) + " の記録（" + old.records.length + "件）があります。<br>" +
             "今回の " + t.count + "件で<b>置き換えます</b>。前の記録は消えます。", "置き換える", run);
         } else run();
-      });
+      };
+      root.querySelector("#cyOk").addEventListener("click", function(){ finish(false); });
+      root.querySelector("#cyBk").addEventListener("click", function(){ finish(true); });
     });
 }
 
