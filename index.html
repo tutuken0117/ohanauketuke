@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="御花受付">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>御花受付・伊勢神社</title>
+<style>
+/* ===== 屋外・直射日光下での視認性を最優先した単一（明るい）テーマ ===== */
+:root{
+  --paper:#ffffff;
+  --surface:#f6f3ef;
+  --surface2:#ece7e0;
+  --line:#ded6cc;
+  --line-strong:#c3b8ab;
+  --ink:#1a1512;
+  --ink2:#5c534b;
+  --ink3:#8a7f75;
+  --shu:#c4362b;          /* 朱 ＝ 主操作・合計 */
+  --shu-dark:#9d2820;
+  --shu-soft:#fcece9;
+  --ai:#1a5a7a;           /* 藍 ＝ 神楽団御花 */
+  --ai-soft:#e4eff5;
+  --gold:#8a6400;
+  --gold-soft:#fdf3d9;
+  --ok:#186b45;
+  --jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic Medium","YuGothic","Noto Sans JP","Meiryo",sans-serif;
+  --num:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  --bar-h:112px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--surface);
+  color:var(--ink);
+  font-family:var(--jp);
+  font-size:16px;line-height:1.45;
+  -webkit-text-size-adjust:100%;
+  overscroll-behavior-y:none;
+}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.hidden{display:none !important}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.lbl{font-size:11px;letter-spacing:.14em;color:var(--ink3);font-weight:700}
+
+.shell{max-width:560px;margin:0 auto;background:var(--paper);min-height:100vh;
+  box-shadow:0 0 0 1px var(--line);position:relative}
+
+/* ===== 練習モード帯 ===== */
+#practice{background:#8a6400;color:#fff;font-size:13px;font-weight:700;
+  padding:7px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative;z-index:40}
+#practice button{background:rgba(255,255,255,.2);color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700}
+
+/* ===== 上部：常時集計 ===== */
+.topbar{position:sticky;top:0;z-index:30;background:var(--paper);border-bottom:2px solid var(--ink);}
+.totwrap{padding:6px 12px 5px}
+.tot-main{display:flex;align-items:baseline;gap:7px}
+.tot-main .lbl{flex:0 0 auto}
+.tot-main .big{font-family:var(--num);font-weight:700;font-size:26px;letter-spacing:-.01em;color:var(--shu);line-height:1;font-variant-numeric:tabular-nums}
+.tot-main .yen{font-size:14px;font-weight:700;color:var(--shu);margin-left:-3px}
+.tot-sub{display:flex;align-items:baseline;gap:5px;margin-top:4px;flex-wrap:wrap}
+.tot-sub span{font-size:10.5px;letter-spacing:.06em;color:var(--ink3);font-weight:700}
+.tot-sub span.kg{color:var(--ai)}
+.tot-sub b{font-family:var(--num);font-size:15px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-right:7px}
+.tot-sub b.kgv{color:var(--ai)}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2)}
+.tabs button{padding:9px 0;min-height:42px;font-weight:700;font-size:14px;color:var(--ink2);border-bottom:3px solid transparent}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink);border-bottom-color:var(--shu)}
+
+/* ===== ステップ ===== */
+main{padding:7px 10px calc(var(--bar-h) + 12px)}
+.step{margin-bottom:7px}
+.step-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.step-no{width:18px;height:18px;border-radius:50%;background:var(--ink);color:var(--paper);
+  font-size:12px;font-weight:700;display:grid;place-items:center;font-family:var(--num)}
+.step-head b{font-size:13.5px;letter-spacing:.04em}
+.step-head .hint{margin-left:auto;font-size:11.5px;color:var(--ink3)}
+
+/* 検索 */
+.search{position:relative}
+.search input{width:100%;height:46px;padding:0 42px 0 12px;border:2px solid var(--line-strong);
+  border-radius:9px;font-size:18px;font-weight:700;background:var(--paper)}
+.search input:focus{outline:none;border-color:var(--shu);box-shadow:0 0 0 3px var(--shu-soft)}
+.search input::-webkit-search-cancel-button,.search input::-webkit-search-decoration,
+.filters input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
+.search input::placeholder{color:var(--ink3);font-weight:500;font-size:17px}
+#qclear{position:absolute;right:2px;top:1px;width:44px;height:44px;border-radius:8px;
+  font-size:24px;color:var(--ink3);display:grid;place-items:center}
+
+/* 選択済み表示 */
+.chosen{margin-top:6px;display:flex;align-items:center;gap:10px;background:var(--shu-soft);
+  border:2px solid var(--shu);border-radius:10px;padding:6px 10px}
+.chosen .nm{font-size:20px;font-weight:700;line-height:1.15}
+.chosen .dt{font-size:12px;color:var(--shu-dark);font-weight:700}
+.chosen button{margin-left:auto;background:var(--paper);border:1px solid var(--line-strong);
+  border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;min-height:44px}
+
+/* 候補 */
+.cands{margin-top:6px;display:flex;flex-direction:column;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cand{background:var(--paper);display:flex;align-items:center;gap:8px;padding:7px 10px;
+  text-align:left;width:100%;min-height:46px}
+.cand:active{background:var(--shu-soft)}
+.cand .nm{font-size:17.5px;font-weight:700;letter-spacing:.01em}
+.cand .badge{font-size:11.5px;font-weight:700;background:var(--surface2);color:var(--ink2);
+  padding:3px 7px;border-radius:5px;white-space:nowrap}
+.cand .badge.bdist{background:var(--ai);color:#fff}
+.candhead{background:var(--surface);color:var(--ink3);font-size:11px;letter-spacing:.12em;font-weight:700;
+  padding:6px 11px}
+#dsearch input{height:46px;font-size:17px}
+#dsearch input::placeholder{font-size:16px}
+#dqclear{position:absolute;right:2px;top:1px;width:46px;height:46px;border-radius:8px;
+  font-size:24px;color:var(--ink3);display:grid;place-items:center}
+.cand .last{margin-left:auto;font-family:var(--num);font-size:12.5px;color:var(--ink3);white-space:nowrap}
+.cand.new{background:var(--gold-soft)}
+.cand.new .nm{font-size:18px}
+.cand.new .badge{background:var(--gold);color:#fff}
+
+/* 地区グリッド */
+.districts{margin-top:5px}
+.caprow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.districts .cap{font-size:11.5px;color:var(--ink3);font-weight:700;flex:1;min-width:0}
+#dEdit{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--ink2);border:1px solid var(--line-strong);
+  border-radius:7px;padding:5px 10px;background:var(--paper);min-height:32px}
+#dEdit.on{background:var(--gold);border-color:var(--gold);color:#fff}
+#nEdit{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--ink2);border:1px solid var(--line-strong);
+  border-radius:7px;padding:5px 10px;background:var(--paper);min-height:32px;margin-left:auto}
+#nEdit.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.cand.del{border-left:4px solid var(--shu)}
+.cand.del .x{margin-left:auto;color:var(--shu);font-weight:700;font-size:15px}
+.cand.gone{background:var(--surface2);color:var(--ink3)}
+.cand.gone .nm{text-decoration:line-through}
+.cand.gone .x{margin-left:auto;color:var(--ok);font-weight:700;font-size:12px}
+.cand.act{background:var(--shu-soft);justify-content:center}
+.cand.act .nm{font-size:16px;color:var(--shu-dark)}
+.candnote{background:var(--gold-soft);border-bottom:1px solid #e0c884;color:var(--gold);
+  padding:8px 11px;font-size:12.5px;font-weight:700;line-height:1.5}
+.namein{display:flex;gap:7px;padding:9px;background:var(--paper)}
+.namein input{flex:1;min-height:52px;border:2px solid var(--shu);border-radius:9px;padding:0 11px;
+  font-size:18px;font-weight:700;min-width:0}
+.namein .ok{flex:0 0 auto;background:var(--shu);color:#fff;border-radius:9px;padding:0 18px;min-height:52px;
+  font-size:16px;font-weight:700}
+.rnorow{display:flex;align-items:center;gap:8px}
+.rnorow .rlbl{font-size:13px;font-weight:700;color:var(--ink2);flex:0 0 auto}
+.rnorow button{flex:0 0 auto;width:50px;min-height:46px;border:1.5px solid var(--line-strong);border-radius:10px;
+  background:var(--surface);font-size:26px;font-weight:700;line-height:1}
+.rnorow input{flex:1;min-width:0;min-height:46px;border:1.5px solid var(--line-strong);border-radius:10px;
+  text-align:center;font-family:var(--num);font-size:21px;font-weight:700;background:var(--paper);
+  font-variant-numeric:tabular-nums;padding:0 6px}
+.rnorow input:focus{outline:none;border-color:var(--shu);box-shadow:0 0 0 3px var(--shu-soft)}
+#fsort{flex:0 0 auto}
+.howto{display:block;font-weight:600;color:var(--ink3);margin-top:3px}
+.row .handle{flex:0 0 auto;font-size:21px;color:var(--ink3);line-height:1;touch-action:none;cursor:grab;
+  padding:14px 8px 14px 12px;margin:-14px -4px -14px 0;border-radius:8px}
+.row .handle:active{background:var(--surface2);color:var(--ink)}
+.row.dragging{background:var(--shu-soft);box-shadow:0 6px 16px rgba(0,0,0,.22);position:relative;z-index:5;
+  border-radius:8px;outline:2px solid var(--shu)}
+.bar-amt .rno{margin-left:6px;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+  background:var(--ink);color:#fff}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dgrid button{background:var(--surface);border:1.5px solid var(--line);border-radius:9px;
+  min-height:44px;font-size:14px;font-weight:700;padding:4px 5px;line-height:1.15}
+.dgrid button:active{background:var(--surface2);border-color:var(--ink3)}
+.dgrid button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.dgrid.g3{grid-template-columns:repeat(3,1fr)}
+.dgrid.g3 button{min-height:44px;font-size:13.5px}
+.dgrid button.nav{background:var(--shu-soft);border-color:#e2b6b0;color:var(--shu-dark)}
+.dgrid button.nav small{opacity:.8}
+.dgrid button.back{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:16px;
+  font-weight:700;letter-spacing:.06em;box-shadow:0 2px 0 #000}
+.dgrid button.back:active{transform:translateY(2px);box-shadow:none}
+.dgrid button.del{background:var(--paper);border-color:#e3b3ae;color:var(--shu-dark);position:relative}
+.dgrid button.del::after{content:"✕";position:absolute;top:3px;right:6px;font-size:12px;color:var(--shu)}
+.dgrid button.gone{background:var(--surface2);border-style:dashed;color:var(--ink3);text-decoration:line-through}
+.dgrid button.gone::after{content:"戻す";position:absolute;top:3px;right:6px;font-size:10px;
+  color:var(--ok);text-decoration:none;font-weight:700}
+.dgrid button.purge{background:var(--shu);border-color:var(--shu-dark);color:#fff;min-height:52px;font-size:15px}
+.dgrid button.purge small{opacity:.85;color:#ffdcd6}
+.editnote{grid-column:1/-1;background:var(--gold-soft);border:1px solid #e0c884;color:var(--gold);
+  border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:700;line-height:1.5}
+.dgrid.one{grid-template-columns:1fr}
+.freein{display:flex;gap:7px}
+.freein input{flex:1;min-height:52px;border:2px solid var(--shu);border-radius:9px;padding:0 11px;
+  font-size:18px;font-weight:700;background:var(--paper);min-width:0}
+.freein .ok{flex:0 0 auto;background:var(--shu);color:#fff;border-radius:9px;padding:0 18px;min-height:52px;
+  font-size:16px;font-weight:700}
+.distbtn{width:100%;min-height:52px;border:1.5px solid var(--line-strong);border-radius:9px;background:var(--surface);
+  text-align:left;padding:6px 11px;font-size:18px;font-weight:700}
+.distbtn small{display:block;font-size:11px;color:var(--ink3);font-weight:700}
+.customlist{border:1px dashed var(--line-strong);border-radius:9px;padding:8px 10px}
+.cl-cap{font-size:11px;letter-spacing:.1em;color:var(--ink3);font-weight:700;margin-bottom:5px}
+.cl-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:15px;font-weight:700}
+.cl-row button{margin-left:auto;color:var(--shu);font-size:16px;font-weight:700;padding:8px 12px;
+  border:1px solid var(--line);border-radius:7px;background:var(--paper);min-height:40px}
+.dgrid button small{display:block;font-size:10px;font-weight:600;opacity:.62;letter-spacing:.02em}
+
+/* 金額 */
+.amt-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.amt{background:var(--surface);border:1.5px solid var(--line-strong);border-radius:10px;
+  min-height:50px;font-family:var(--num);font-size:22px;font-weight:600;position:relative;
+  display:grid;place-items:center;letter-spacing:-.02em}
+.amt:active{background:var(--surface2)}
+.amt.on{background:var(--shu);border-color:var(--shu-dark);color:#fff}
+.amt.sm{min-height:44px;font-size:16px}
+.amt.other{font-family:var(--jp);font-size:14px;font-weight:700}
+.amt-row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+
+/* テンキー */
+.pad{margin-top:9px;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--paper)}
+.pad-disp{padding:9px 14px;display:flex;align-items:baseline;justify-content:flex-end;gap:4px;
+  background:var(--ink);color:var(--paper)}
+.pad-disp .v{font-family:var(--num);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.pad-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+.pad-keys button{background:var(--paper);min-height:50px;font-family:var(--num);font-size:24px;font-weight:600}
+.pad-keys button:active{background:var(--surface2)}
+.pad-keys .fn{font-family:var(--jp);font-size:15px;font-weight:700}
+.pad-keys .done{background:var(--ink);color:var(--paper)}
+
+/* 神楽団トグル */
+.kag{width:100%;min-height:48px;border:2.5px solid var(--line-strong);border-radius:11px;
+  background:var(--surface);display:flex;align-items:center;gap:12px;padding:0 14px;font-weight:700}
+.kag .box{width:25px;height:25px;border:2.5px solid var(--ink3);border-radius:6px;background:var(--paper);
+  display:grid;place-items:center;font-size:19px;color:transparent;flex:0 0 auto}
+.kag .tx{font-size:17px}
+.kag .sub{margin-left:auto;font-size:10.5px;color:var(--ink3);font-weight:700;text-align:right;line-height:1.25}
+.kag.on{background:var(--ai);border-color:#0f4260;color:#fff}
+.kag.on .box{background:#fff;border-color:#fff;color:var(--ai)}
+.kag.on .sub{color:#cfe6f2}
+
+/* 直前の登録 */
+.recent{margin-top:12px;border-top:1px dashed var(--line-strong);padding-top:8px}
+.recent .cap{font-size:11px;letter-spacing:.12em;color:var(--ink3);font-weight:700;margin-bottom:6px}
+.recent-row{display:flex;align-items:center;gap:9px;background:var(--surface);border-radius:9px;padding:6px 10px;margin-bottom:5px}
+.recent-row .no{font-family:var(--num);font-size:12px;color:var(--ink3);flex:0 0 auto}
+.recent-row .nm{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-row .am{margin-left:auto;font-family:var(--num);font-weight:600;font-size:16px;flex:0 0 auto}
+.recent-row .kgb{background:var(--ai);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;flex:0 0 auto}
+.recent-row .edit{flex:0 0 auto;border:1px solid var(--line-strong);background:var(--paper);border-radius:7px;
+  padding:8px 10px;font-size:12px;font-weight:700;min-height:40px}
+
+/* ===== 確認バー（同一画面・固定） ===== */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:35;background:var(--paper);
+  border-top:2px solid var(--ink);max-width:560px;margin:0 auto;
+  padding:6px 10px calc(6px + env(safe-area-inset-bottom))}
+.bar .warn{background:var(--gold-soft);border:1px solid #e0c884;color:var(--gold);
+  font-size:11.5px;font-weight:700;border-radius:7px;padding:4px 8px;margin-bottom:5px}
+.bar-main{display:flex;align-items:center;gap:10px}
+.bar-info{min-width:0;flex:1}
+.bar-nm{font-size:17.5px;font-weight:700;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-nm .dt{font-size:12px;color:var(--ink2);font-weight:700}
+.bar-nm.empty{color:var(--ink3);font-size:16px;font-weight:600}
+.bar-amt{display:flex;align-items:baseline;gap:3px;margin-top:1px}
+.bar-amt .v{font-family:var(--num);font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bar-amt .y{font-size:14px;font-weight:700}
+.bar-amt .kind{margin-left:7px;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+  background:var(--surface2);color:var(--ink2)}
+.bar-amt .kind.kg{background:var(--ai);color:#fff}
+.bar-amt.empty .v{color:var(--ink3)}
+#submit{flex:0 0 auto;background:var(--shu);color:#fff;border-radius:11px;min-height:62px;min-width:124px;
+  font-size:19px;font-weight:700;letter-spacing:.04em;box-shadow:0 2px 0 var(--shu-dark)}
+#submit:disabled{background:var(--surface2);color:var(--ink3);box-shadow:none}
+#submit:active:not(:disabled){transform:translateY(2px);box-shadow:none}
+
+/* ===== トースト ===== */
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bar-h) + 14px);z-index:60;
+  background:var(--ink);color:#fff;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.28);max-width:92vw}
+#toast .t1{font-size:12px;color:#c8bfb6;font-weight:700}
+#toast .t2{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast button{background:#3d342e;color:#fff;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:700;flex:0 0 auto}
+@media (prefers-reduced-motion:no-preference){
+  #toast{animation:pop .16s ease-out}
+  @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(8px)}}
+}
+
+/* ===== 一覧 ===== */
+.filters{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.filters input,.filters select{flex:1 1 120px;min-height:44px;border:1.5px solid var(--line-strong);
+  border-radius:9px;padding:0 10px;background:var(--paper);font-size:15px}
+.filters button{min-height:44px;border:1.5px solid var(--line-strong);border-radius:9px;padding:0 12px;
+  font-size:14px;font-weight:700;background:var(--paper);flex:0 0 auto}
+.filters button.on{background:var(--ai);border-color:var(--ai);color:#fff}
+.filters input:disabled,.filters select:disabled,.filters button:disabled{opacity:.45}
+.listinfo{font-size:12.5px;color:var(--ink2);margin-bottom:8px;font-weight:700}
+.listinfo .howto{display:block;color:var(--ink3);font-weight:600;font-size:11.5px;margin-top:2px}
+.rows{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{background:var(--paper);display:flex;align-items:center;gap:8px;padding:7px 10px;width:100%;text-align:left;min-height:50px}
+.row:active{background:var(--surface)}
+.row .no{font-family:var(--num);font-size:12px;color:var(--ink3);width:26px;flex:0 0 auto}
+.row .mid{min-width:0;flex:1}
+.row .nm{font-size:16.5px;font-weight:700;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .dt{font-size:11.5px;color:var(--ink3);font-weight:700}
+.row .am{font-family:var(--num);font-size:18px;font-weight:600;flex:0 0 auto}
+.row .kgb{background:var(--ai);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;flex:0 0 auto}
+.row .chev{color:var(--line-strong);flex:0 0 auto;font-size:15px}
+.empty-state{text-align:center;padding:28px 16px;color:var(--ink3)}
+.empty-state p{font-size:14px;margin:0 0 14px}
+
+.datasec{margin-top:20px;border-top:2px solid var(--line);padding-top:14px}
+.datasec h3{font-size:12px;letter-spacing:.14em;color:var(--ink3);margin:0 0 9px}
+.dbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dbtn{background:var(--paper);border:1.5px solid var(--line-strong);border-radius:10px;min-height:50px;
+  font-size:14.5px;font-weight:700;padding:8px;line-height:1.3}
+.dbtn small{display:block;font-size:10.5px;color:var(--ink3);font-weight:600;margin-top:2px}
+.dbtn.danger{border-color:#e3b3ae;color:var(--shu-dark)}
+.dbtn.wide{grid-column:1/-1}
+.saveinfo{margin-top:10px;font-size:11.5px;color:var(--ink3);text-align:center}
+
+/* ===== モーダル ===== */
+.modal{position:fixed;inset:0;z-index:70;background:rgba(26,21,18,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--paper);width:100%;max-width:560px;border-radius:16px 16px 0 0;
+  padding:16px 14px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
+.sheet h2{margin:0 0 12px;font-size:17px}
+.f{margin-bottom:12px}
+.f label{display:block;font-size:11px;letter-spacing:.12em;color:var(--ink3);font-weight:700;margin-bottom:5px}
+.f input,.f select{width:100%;min-height:52px;border:1.5px solid var(--line-strong);border-radius:9px;
+  padding:0 11px;font-size:18px;font-weight:700;background:var(--paper)}
+.sheet-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}
+.sheet-btns button{min-height:56px;border-radius:10px;font-size:16px;font-weight:700}
+.b-primary{background:var(--shu);color:#fff}
+.b-ghost{background:var(--surface2);color:var(--ink)}
+.b-danger{background:var(--paper);border:2px solid var(--shu);color:var(--shu);grid-column:1/-1}
+.warnbox{background:var(--shu-soft);border:1.5px solid #e6b5af;border-radius:9px;padding:11px;font-size:13.5px;
+  line-height:1.6;margin-bottom:12px}
+:focus-visible{outline:3px solid var(--shu);outline-offset:2px}
+</style>
+
+</head>
+<body style="margin:0">
+<div class="shell">
+  <div id="practice" class="hidden">
+    <span>練習モード（本番とは別に保存）</span>
+    <button id="exitPractice">本番に戻す</button>
+  </div>
+
+  <header class="topbar">
+    <div class="totwrap">
+      <div class="tot-main">
+        <span class="lbl">御花合計</span>
+        <span class="big" id="totAll">0</span><span class="yen">円</span>
+      </div>
+      <div class="tot-sub">
+        <span>通常</span><b id="totNormal">0</b>
+        <span class="kg">神楽団</span><b id="totKagura" class="kgv">0</b>
+        <span>件数</span><b id="totCount">0</b>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="entry" aria-selected="true">受付</button>
+      <button role="tab" data-tab="list" aria-selected="false">登録済み一覧</button>
+    </nav>
+  </header>
+
+  <!-- ============ 受付 ============ -->
+  <main id="view-entry">
+    <section class="step">
+      <div class="step-head"><span class="step-no num">1</span><b>地区</b>
+</div>
+      <div class="search" id="dsearch">
+        <input id="dq" type="search" inputmode="text" autocomplete="off" autocapitalize="off"
+               spellcheck="false" placeholder="屋号・地区名で検索" aria-label="屋号や地区名で検索">
+        <button id="dqclear" class="hidden" aria-label="消す">×</button>
+      </div>
+      <div id="dresults" class="cands hidden"></div>
+      <div id="distChosen" class="chosen hidden">
+        <div>
+          <div class="dt">選択中の地区</div>
+          <div class="nm" id="distChosenName"></div>
+        </div>
+        <button id="distChange">変更</button>
+      </div>
+      <div id="districts" class="districts">
+        <div class="caprow"><span class="cap" id="dcap">地区から選ぶ</span>
+          <button type="button" id="dEdit">編集</button></div>
+        <div class="dgrid" id="dgrid"></div>
+      </div>
+    </section>
+
+    <section class="step" id="stepName">
+      <div class="step-head"><span class="step-no num">2</span><b>ご芳名</b>
+        <span class="hint" id="step1hint"></span>
+        <button type="button" id="nEdit" class="hidden">編集</button></div>
+      <div class="search">
+        <input id="q" type="search" inputmode="text" autocomplete="off" autocapitalize="off"
+               spellcheck="false" enterkeyhint="done" placeholder="タップして入力 → ↵ で確定"
+               aria-label="ご芳名を入力・検索">
+        <button id="qclear" class="hidden" aria-label="消す">×</button>
+      </div>
+      <div id="chosen" class="chosen hidden">
+        <div>
+          <div class="dt" id="chosenDist"></div>
+          <div class="nm" id="chosenName"></div>
+        </div>
+        <button id="chosenChange">変更</button>
+      </div>
+      <div id="cands" class="cands hidden"></div>
+    </section>
+
+    <section class="step">
+      <div class="step-head"><span class="step-no num">3</span><b>金額</b>
+        <span class="hint" id="step2hint"></span></div>
+      <div class="amt-grid">
+        <button class="amt" data-amt="10000">10,000</button>
+        <button class="amt" data-amt="5000">5,000</button>
+      </div>
+      <div class="amt-row4">
+        <button class="amt sm" data-amt="1000">1,000</button>
+        <button class="amt sm" data-amt="2000">2,000</button>
+        <button class="amt sm" data-amt="3000">3,000</button>
+        <button class="amt sm other" id="padOpen">その他</button>
+      </div>
+      <div class="pad hidden" id="pad">
+        <div class="pad-disp"><span class="v" id="padV">0</span><span>円</span></div>
+        <div class="pad-keys">
+          <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+          <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+          <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+          <button class="fn" data-k="back">←</button><button data-k="0">0</button><button class="fn" data-k="000">000</button>
+          <button class="fn done" data-k="ok" style="grid-column:1/-1">この金額にする</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rnorow">
+        <span class="rlbl">領収番号</span>
+        <button type="button" id="rnoMinus" aria-label="ひとつ戻す">−</button>
+        <input id="rno" type="text" inputmode="numeric" autocomplete="off" placeholder="なし" aria-label="領収番号">
+        <button type="button" id="rnoPlus" aria-label="ひとつ進める">＋</button>
+      </div>
+    </section>
+
+    <section class="step">
+      <button class="kag" id="kagBtn" aria-pressed="false">
+        <span class="box">✓</span>
+        <span class="tx">神楽団御花</span>
+        <span class="sub">備考に「※神楽団御花」<br>通常御花からは除外</span>
+      </button>
+    </section>
+
+    <div class="recent hidden" id="recent">
+      <div class="cap">直前の登録（入力ミスはここですぐ修正）</div>
+      <div id="recentRows"></div>
+    </div>
+  </main>
+
+  <!-- ============ 一覧 ============ -->
+  <main id="view-list" class="hidden">
+    <div class="filters">
+      <input id="fq" type="search" placeholder="ご芳名・領収番号で検索" autocomplete="off" aria-label="ご芳名で検索">
+      <select id="fd" aria-label="地区で絞り込み"><option value="">すべての地区</option></select>
+      <button id="fk" aria-pressed="false">神楽団のみ</button>
+      <button id="fsort">新しい順 ⇅</button>
+    </div>
+    <div class="listinfo" id="listInfo"></div>
+    <div class="rows" id="rows"></div>
+    <div class="empty-state hidden" id="emptyState">
+      <p>まだ登録がありません。<br>「受付」タブから登録してください。</p>
+      <button class="dbtn" id="startPractice" style="max-width:280px;margin:0 auto">練習モードで試す<small>本番とは別に保存して操作を練習できます（本番データには入りません）</small></button>
+    </div>
+
+    <div class="datasec">
+      <h3>データ</h3>
+      <div class="dbtns">
+        <button class="dbtn wide" id="expPdf">PDFで保存<small>番号・地区名・ご芳名・金額・備考＋集計を印字</small></button>
+        <button class="dbtn" id="bkSave">バックアップを保存<small>あとで復元できるファイルを書き出す</small></button>
+        <button class="dbtn" id="bkLoad">バックアップから復元<small>保存したファイルを読み込む</small></button>
+        <input type="file" id="bkFile" accept=".json,application/json" class="hidden">
+        <button class="dbtn wide danger" id="resetBtn">今年のデータを全消去して新年度を開始<small>先にバックアップを保存できます</small></button>
+        <button class="dbtn wide" id="restoreDist">地区・ご芳名リストを初期状態に戻す<small>削除・追加した項目をすべて元に戻します（登録データはそのまま）</small></button>
+      </div>
+      <div class="saveinfo" id="saveInfo"></div>
+    </div>
+  </main>
+
+  <!-- ============ 確認バー ============ -->
+  <div class="bar" id="bar">
+    <div class="warn hidden" id="barWarn"></div>
+    <div class="bar-main">
+      <div class="bar-info">
+        <div class="bar-nm empty" id="barNm">ご芳名を選んでください</div>
+        <div class="bar-amt empty" id="barAmtWrap">
+          <span class="v" id="barAmt">—</span><span class="y">円</span>
+          <span class="kind" id="barKind">通常御花</span>
+        </div>
+      </div>
+      <button id="submit" disabled>登録する</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<div id="modalHost"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   伊勢神社 御花受付・入力システム
+   マスターデータは添付Excel「御花一覧」タブ（2025年）から抽出したもの。
+   ・地区リスト  = J7:J15（入力規則リスト）
+   ・地区別ご芳名 = 名前定義（正地・上松原 I7:I16 ほか）
+   ・昨年の顔ぶれ = A7:E61 のご芳名と地区のみ（金額は持たない）
+   ・よみがな     = 検索補助として付与（一致は「漢字 OR よみ」のOR判定のため、
+                    よみが違っていても漢字で必ずヒットする）
+   ===================================================================== */
+
+/* ---- 地区（Excel J7:J15 の順序どおり） ---- */
+const KOSHI = ["正地・上松原","中松原","下松原","上山ノ廻り","下山ノ廻り","山崎"];   /* 氏子地区（Excelの名前定義あり） */
+
+/* ---- 町内（安芸太田町）：旧町村ごとの地区 ---- */
+const TOWN_GROUPS = [
+  {g:"旧筒賀村",   places:["坂原","布原","大井","小原","数舟","萩原","本郷","市","三谷","八幡原","小屋原","天神原","井仁","中ノ原","田ノ尻","砂ヶ瀬","向光石","吉ヶ瀬"]},
+  {g:"旧加計町",   places:["穴","加計","観音","下筒賀","下殿河内","津浪","坪野"]},
+  {g:"旧戸河内町", places:["上殿","川手","梶ノ木","板ケ谷","吉和郷","小板","柴木","寺領","猪山","田吹","戸河内","那須","平見谷","松原","横川","遊谷","土居","打梨"]}
+];
+
+/* ---- 町外：市町 → （区）→ 旧市町村 ---- */
+const HIROSHIMA_WARDS = [
+  {w:"中区",     areas:[]},
+  {w:"東区",     areas:["牛田","戸坂","温品","福木","中山"]},
+  {w:"南区",     areas:["宇品","仁保","大河","楠那","似島"]},
+  {w:"西区",     areas:["己斐","草津","古田","井口","三篠"]},
+  {w:"安佐南区", areas:["祇園","安古市","佐東","沼田"]},
+  {w:"安佐北区", areas:["可部","高陽","白木","安佐"]},
+  {w:"安芸区",   areas:["船越","矢野","瀬野川","熊野跡"]},
+  {w:"佐伯区",   areas:["五日市","湯来"]}
+];
+const NEAR_CITIES = [
+  {c:"廿日市市",   areas:["廿日市","佐伯","吉和","大野","宮島"]},
+  {c:"北広島町",   areas:["千代田","大朝","芸北","豊平"]},
+  {c:"安芸高田市", areas:["吉田","八千代","美土里","高宮","甲田","向原"]}
+];
+/* 県内のその他の市町（近い順）。areasが空＝合併していない自治体 */
+const KENNAI = [
+  {c:"大竹市",       areas:["大竹","小方","玖波","栗谷"]},
+  {c:"東広島市",     areas:["西条","八本松","志和","高屋","黒瀬","福富","豊栄","河内","安芸津"]},
+  {c:"三次市",       areas:["三次","君田","布野","作木","吉舎","三良坂","三和","甲奴"]},
+  {c:"庄原市",       areas:["庄原","西城","東城","口和","高野","比和","総領"]},
+  {c:"呉市",         areas:["呉","下蒲刈","川尻","音戸","倉橋","蒲刈","安浦","豊浜","豊"]},
+  {c:"江田島市",     areas:["江田島","能美","沖美","大柿"]},
+  {c:"竹原市",       areas:["竹原","忠海"]},
+  {c:"三原市",       areas:["三原","本郷","久井","大和"]},
+  {c:"尾道市",       areas:["尾道","御調","向島","因島","瀬戸田"]},
+  {c:"福山市",       areas:["福山","松永","鞆","内海","沼隈","新市","神辺"]},
+  {c:"府中市",       areas:["府中","上下"]},
+  {c:"世羅町",       areas:["世羅","甲山","世羅西"]},
+  {c:"神石高原町",   areas:["油木","神石","豊松","三和"]},
+  {c:"府中町",       areas:[]},
+  {c:"海田町",       areas:[]},
+  {c:"熊野町",       areas:[]},
+  {c:"坂町",         areas:[]},
+  {c:"大崎上島町",   areas:["大崎","東野","木江"]}
+];
+
+const KAGURA_NOTE = "※神楽団御花";   /* Excel J16 */
+
+/* ---- 地区別ご芳名マスター（Excelの名前定義） ---- */
+const MASTER = {
+  "正地・上松原":[["田屋","たや"],["杉谷","すぎたに"],["仲広屋","なかひろや"],["稲田","いなだ"],["梅田","うめだ"],["玉広","たまひろ"],["岡田","おかだ"],["上新屋","かみしんや"],["吉田","よしだ"],["羽野","はの"]],
+  "中松原":[["部屋","へや"],["金升","かねます"],["藤広屋","ふじひろや"],["藤川屋","ふじかわや"],["沖田屋","おきたや"],["岡広屋","おかひろや"]],
+  "下松原":[["下瀬屋","しもせや"],["橋仲","はしなか"],["橋田屋","はしだや"],["橋広屋","はしひろや"],["東丸","ひがしまる"],["川崎屋","かわさきや"],["田中","たなか"],["稲田","いなだ"]],
+  "上山ノ廻り":[["向井屋","むかいや"],["本田屋","ほんだや"],["山口屋","やまぐちや"],["小原","おばら"],["中田屋","なかたや"],["新井屋","あらいや"]],
+  "下山ノ廻り":[["桝岡","ますおか"],["桝見屋","ますみや"],["吉野屋","よしのや"],["吉川","よしかわ"],["桝木屋","ますきや"],["吉広","よしひろ"],["桝本","ますもと"]],
+  "山崎":[["大島屋","おおしまや"],["新広屋","しんひろや"],["中島屋","なかしまや"],["沖野屋","おきのや"],["久保","くぼ"],["鶴亀典","つるかめ"],["河平","かわひら"],["山崎","やまさき"],["井出口","いでぐち"]],
+};
+function masterOf(d){ return MASTER[d] || []; }        /* 氏子地区以外は空 */
+function isFree(d){ return masterOf(d).length === 0; }
+
+/* ---- 受付側で追加した地区（端末に保存し、翌年も残る） ---- */
+const CUSTOM_KEY = "ise_ohana_custom_districts_v1";
+let customD = {};
+(function(){ try{ customD = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "{}") || {}; }catch(e){ customD = {}; } })();
+function saveCustom(){ try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify(customD)); }catch(e){} }
+function addCustom(g, n){
+  if (!customD[g]) customD[g] = [];
+  if (customD[g].indexOf(n) < 0){ customD[g].push(n); saveCustom(); }
+}
+function delCustom(g, n){
+  const a = customD[g] || [], i = a.indexOf(n);
+  if (i >= 0){ a.splice(i, 1); saveCustom(); }
+}
+
+/* ご芳名の追加・削除（"地区|ご芳名" で管理。端末に保存） */
+const CN_KEY = "ise_ohana_custom_names_v1", NH_KEY = "ise_ohana_hidden_names_v1", NP_KEY = "ise_ohana_purged_names_v1";
+let customN = {}, hiddenN = [], purgedN = [];
+(function(){
+  try{ customN = JSON.parse(localStorage.getItem(CN_KEY) || "{}") || {}; }catch(e){ customN = {}; }
+  try{ hiddenN = JSON.parse(localStorage.getItem(NH_KEY) || "[]") || []; }catch(e){ hiddenN = []; }
+  try{ purgedN = JSON.parse(localStorage.getItem(NP_KEY) || "[]") || []; }catch(e){ purgedN = []; }
+})();
+function saveNames(){
+  try{
+    localStorage.setItem(CN_KEY, JSON.stringify(customN));
+    localStorage.setItem(NH_KEY, JSON.stringify(hiddenN));
+    localStorage.setItem(NP_KEY, JSON.stringify(purgedN));
+  }catch(e){}
+}
+const nkey = function(d, n){ return d + "|" + n; };
+function isCustomName(d, n){ return (customN[d] || []).indexOf(n) >= 0; }
+function addName(d, n){
+  if (!customN[d]) customN[d] = [];
+  const i = hiddenN.indexOf(nkey(d, n)); if (i >= 0) hiddenN.splice(i, 1);
+  const j = purgedN.indexOf(nkey(d, n)); if (j >= 0) purgedN.splice(j, 1);
+  if (customN[d].indexOf(n) < 0) customN[d].push(n);
+  saveNames();
+}
+/* 受付で新しく入力されたご芳名を名簿に覚える（来年以降も候補に出る）。新しく追加したら true */
+function learnName(d, n){
+  if (ROSTER.some(function(p){ return p.dist === d && p.name === n; })){
+    const k = nkey(d, n), i = hiddenN.indexOf(k);
+    if (i >= 0) hiddenN.splice(i, 1);
+    const j = purgedN.indexOf(k);
+    if (j >= 0) purgedN.splice(j, 1);
+    if (i >= 0 || j >= 0) saveNames();
+    return false;
+  }
+  const isNew = !isCustomName(d, n);
+  addName(d, n);
+  return isNew;
+}
+function removeCustomName(d, n){
+  const a = customN[d] || [], i = a.indexOf(n);
+  if (i >= 0){ a.splice(i, 1); saveNames(); }
+}
+function toggleHiddenName(d, n){
+  const k = nkey(d, n), i = hiddenN.indexOf(k);
+  if (i >= 0) hiddenN.splice(i, 1); else hiddenN.push(k);
+  saveNames();
+}
+function purgeNames(keys){
+  keys.forEach(function(k){
+    if (purgedN.indexOf(k) < 0) purgedN.push(k);
+    const i = hiddenN.indexOf(k); if (i >= 0) hiddenN.splice(i, 1);
+  });
+  saveNames();
+}
+function restoreNames(){ customN = {}; hiddenN = []; purgedN = []; saveNames(); }
+/* 有効な名簿（編集中は非表示のものも返す） */
+function activeRoster(withHidden){
+  const out = [];
+  const okk = function(d, n){
+    const k = nkey(d, n);
+    if (purgedN.indexOf(k) >= 0) return false;
+    if (!withHidden && hiddenN.indexOf(k) >= 0) return false;
+    return true;
+  };
+  ROSTER.forEach(function(p){ if (okk(p.dist, p.name)) out.push(p); });
+  Object.keys(customN).forEach(function(d){
+    (customN[d] || []).forEach(function(n){
+      if (okk(d, n)) out.push({name:n, yomi:"", dist:d, master:false, hist:0});
+    });
+  });
+  return out;
+}
+
+/* 使わない地区は非表示にできる（端末に保存。氏子6地区は対象外） */
+const HIDE_KEY = "ise_ohana_hidden_districts_v1";
+let hiddenD = [];
+(function(){ try{ hiddenD = JSON.parse(localStorage.getItem(HIDE_KEY) || "[]") || []; }catch(e){ hiddenD = []; } })();
+function saveHidden(){ try{ localStorage.setItem(HIDE_KEY, JSON.stringify(hiddenD)); }catch(e){} }
+function isHidden(v){ return hiddenD.indexOf(v) >= 0; }
+function toggleHidden(v){
+  const i = hiddenD.indexOf(v);
+  if (i >= 0) hiddenD.splice(i, 1); else hiddenD.push(v);
+  saveHidden();
+}
+
+/* 完全消去した地区（編集画面にも出さない）。「地区リストを初期状態に戻す」でのみ復活する */
+const PURGE_KEY = "ise_ohana_purged_districts_v1";
+let purgedD = [];
+(function(){ try{ purgedD = JSON.parse(localStorage.getItem(PURGE_KEY) || "[]") || []; }catch(e){ purgedD = []; } })();
+function savePurged(){ try{ localStorage.setItem(PURGE_KEY, JSON.stringify(purgedD)); }catch(e){} }
+function isPurged(v){ return purgedD.indexOf(v) >= 0; }
+function purgeHidden(vals){
+  vals.forEach(function(v){
+    if (purgedD.indexOf(v) < 0) purgedD.push(v);
+    const i = hiddenD.indexOf(v);
+    if (i >= 0) hiddenD.splice(i, 1);
+  });
+  savePurged(); saveHidden();
+}
+function restoreDistricts(){
+  hiddenD = []; purgedD = [];
+  saveHidden(); savePurged();
+}
+function customGroupOf(v){                       /* 追加した地区ならその地域名を返す */
+  let g = null;
+  Object.keys(customD).forEach(function(k){ if ((customD[k] || []).indexOf(v) >= 0) g = k; });
+  return g;
+}
+
+/* ---- 選択ツリーを組み立てる（葉のvalueがそのまま地区名になる） ---- */
+function leaf(label, value, sub){ return {label:label, value:value, sub2:sub||""}; }
+function cityNode(c, areas){
+  if (!areas.length) return leaf(c, c);
+  return {label:c, kids:[leaf("（市町名まで）", c)].concat(areas.map(function(a){ return leaf(a, c + a); }))};
+}
+const TREE = KOSHI.map(function(d){ return leaf(d, d); }).concat([
+  {label:"町内", nav:true, kids: [leaf("（町内まで）", "町内")].concat(TOWN_GROUPS.map(function(x){
+      const base = x.g.replace(/^旧/, "").replace(/[村町]$/, "");   /* 旧筒賀村 → 筒賀 */
+      return {label:x.g, kidsFn:function(){
+        return [leaf("（" + base + "まで）", base)]
+          .concat(x.places.map(function(p){ return leaf(p, p); }))
+          .concat((customD[x.g] || []).map(function(p){ return leaf(p, p); }))
+          .concat([{label:"＋ 追加", free:"例）本郷", group:x.g}]);
+      }};
+    }))},
+  {label:"町外", nav:true, kids:[
+      leaf("（町外まで）", "町外"),
+      {label:"広島市", kids: HIROSHIMA_WARDS.map(function(x){
+          if (!x.areas.length) return leaf(x.w, "広島市" + x.w);
+          return {label:x.w, kids:[leaf("（区名まで）", "広島市" + x.w)].concat(
+            x.areas.map(function(a){ return leaf(a, "広島市" + x.w + a); }))};
+        })}
+    ].concat(NEAR_CITIES.map(function(x){ return cityNode(x.c, x.areas); }), [
+      {label:"それ以外", kids:[
+        {label:"県内", kids: KENNAI.map(function(x){ return cityNode(x.c, x.areas); })},
+        {label:"県外", free:"例）島根県益田市"}
+      ]},
+      {label:"一覧にない", free:"例）〇〇市〇〇町"}
+    ])},
+  leaf("地区不明", "不明")
+]);
+
+/* 既知の地区名（並び順と、修正画面の補完に使う） */
+const DISTRICTS = (function(){
+  const out = [];
+  (function walk(ns){ ns.forEach(function(n){ const k = n.kids || (n.kidsFn && n.kidsFn()); if (k) walk(k); else if (n.value) out.push(n.value); }); })(TREE);
+  return out;
+})();
+
+/* ---- 昨年（2025年）にお越しになった方：[地区, ご芳名]（金額は持たない） ----
+   旧区分の「旧筒賀村内」は「筒賀」、「町内（旧筒賀以外）」は「町内」に読み替えている */
+const LAST_YEAR = [
+["上山ノ廻り","向井屋"],["中松原","藤川屋"],["中松原","沖田屋"],["正地・上松原","羽野"],
+["上山ノ廻り","本田屋"],["上山ノ廻り","新井屋"],["下山ノ廻り","吉野屋"],["下松原","橋広屋"],
+["下山ノ廻り","桝見屋"],["下山ノ廻り","桝岡"],["下山ノ廻り","吉川"],["下松原","稲田"],
+["筒賀","池田"],["町外","水口"],["町外","増田"],["中松原","部屋"],
+["中松原","大江実"],["正地・上松原","吉田由美"],["町内","蛸瀬"],["下松原","田中"],
+["正地・上松原","杉谷"],["下松原","橋仲"],["正地・上松原","玉広"],["上山ノ廻り","中田屋"],
+["下松原","東丸"],["山崎","久保"],["中松原","大江朋亮"],["正地・上松原","稲田"],
+["中松原","藤広屋"],["下松原","川崎屋"],["中松原","岡広屋"],["下松原","橋田屋"],
+["山崎","沖野屋"],["上山ノ廻り","筒賀建設"],["山崎","新広屋"],["下山ノ廻り","桝本"],
+["上山ノ廻り","奥茂"],["山崎","大島屋"],["山崎","中島屋"],["筒賀","清水元基"],
+["上山ノ廻り","小原"],["筒賀","木下大輔"],["正地・上松原","上新屋"],["山崎","鶴亀典"],
+["中松原","大江比呂斗"],["上山ノ廻り","山口屋"],["正地・上松原","田屋"],["町外","山本正也"],
+["町外","プルーウイング広島"],["町外","高齢者住宅いつくしま"],["正地・上松原","岡田"],["山崎","河平"],
+["町内","ヌーベル美容院"]
+];
+/* マスターに無い昨年のご芳名のよみ（検索補助） */
+const EXTRA_YOMI = {"池田":"いけだ","水口":"みなくち","増田":"ますだ","大江実":"おおえみのる","吉田由美":"よしだゆみ",
+"蛸瀬":"たこせ","大江朋亮":"おおえともあき","筒賀建設":"つつがけんせつ","奥茂":"おくも","清水元基":"しみずもとき",
+"木下大輔":"きのしただいすけ","大江比呂斗":"おおえひろと","山本正也":"やまもとまさや","プルーウイング広島":"ぷるーういんぐひろしま",
+"高齢者住宅いつくしま":"こうれいしゃじゅうたくいつくしま","ヌーベル美容院":"ぬーべるびよういん"};
+
+/* 名簿に載せないご芳名（"地区|ご芳名"） */
+const EXCLUDE_NAMES = ["上山ノ廻り|筒賀建設"];
+
+/* ---- 名簿の構築：マスター ＋ 昨年お越しになった方（氏子地区以外も含む） ---- */
+const ROSTER = [];
+(function buildRoster(){
+  const seen = new Set();
+  KOSHI.forEach(function(d){
+    masterOf(d).forEach(function(p){
+      const key = d + "|" + p[0];
+      if (seen.has(key)) return;
+      seen.add(key);
+      ROSTER.push({name:p[0], yomi:p[1], dist:d, master:true, hist:0});
+    });
+  });
+  const cnt = new Map();
+  LAST_YEAR.forEach(function(r){
+    const key = r[0] + "|" + r[1];
+    cnt.set(key, (cnt.get(key)||0) + 1);
+    if (!seen.has(key) && EXCLUDE_NAMES.indexOf(key) < 0) {
+      seen.add(key);
+      ROSTER.push({name:r[1], yomi:EXTRA_YOMI[r[1]]||"", dist:r[0], master:false, hist:0});
+    }
+  });
+  ROSTER.forEach(function(p){ p.hist = cnt.get(p.dist + "|" + p.name) || 0; });
+})();
+
+/* ---- 文字の正規化（カタカナ→ひらがな・全角英数→半角・小書き統一） ---- */
+function norm(s){
+  if (!s) return "";
+  s = String(s).replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+  s = s.replace(/[ァ-ヶ]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+  return s.toLowerCase().replace(/[\s　ー・,，.．]/g, "");
+}
+
+/* =========================== 状態 =========================== */
+const KEY_LIVE = "ise_ohana_v1_live";
+const KEY_PRACTICE = "ise_ohana_v1_practice";
+let mode = "live";
+let records = [];        /* {id, dist, name, amt, kagura} 登録順 */
+let seq = 1;
+let draft = {dist:null, name:null, amt:0, kagura:false, rno:""};
+let nextRno = "";
+let editName = false;
+let padVal = "";
+let filter = {q:"", d:"", k:false, asc:false};
+let lastToastTimer = null;
+
+const storeKey = function(){ return mode === "practice" ? KEY_PRACTICE : KEY_LIVE; };
+
+function save(){
+  try{
+    localStorage.setItem(storeKey(), JSON.stringify({v:1, seq:seq, records:records, rno:nextRno, at:Date.now()}));
+    stampSave(true);
+  }catch(e){ stampSave(false); }
+}
+function load(){
+  records = []; seq = 1; nextRno = "";
+  try{
+    const raw = localStorage.getItem(storeKey());
+    if (raw){
+      const o = JSON.parse(raw);
+      if (o && Array.isArray(o.records)){
+        records = o.records.filter(function(r){ return r && r.name && typeof r.amt === "number"; });
+        records.forEach(function(r){ if (typeof r.rno !== "string") r.rno = ""; });
+        seq = o.seq || (records.length + 1);
+        nextRno = typeof o.rno === "string" ? o.rno : "";
+      }
+    }
+  }catch(e){ records = []; }
+}
+
+/* ＋−ボタン用：領収番号（束の番号）の末尾の数字だけを増減し、桁数はそのまま */
+function incRno(v, step){
+  const m = String(v || "").match(/^(.*?)(\d+)$/);
+  if (!m) return String(v || "");
+  const n = parseInt(m[2], 10) + (step || 1);
+  if (n < 0) return m[1] + m[2];
+  return m[1] + String(n).padStart(m[2].length, "0");
+}
+function stampSave(ok){
+  const el = document.getElementById("saveInfo");
+  if (!el) return;
+  const t = new Date();
+  const hh = String(t.getHours()).padStart(2,"0"), mm = String(t.getMinutes()).padStart(2,"0");
+  el.textContent = ok ? ("この端末に自動保存済み ✓  " + hh + ":" + mm + "　（オフラインでも動作します）")
+                      : "⚠ 端末への保存に失敗しました。すぐに「バックアップを保存」してください。";
+  el.style.color = ok ? "" : "var(--shu)";
+}
+
+/* =========================== 集計 =========================== */
+function totals(){
+  let all = 0, kag = 0, kagN = 0;
+  records.forEach(function(r){ all += r.amt; if (r.kagura){ kag += r.amt; kagN++; } });
+  return {all:all, kagura:kag, normal:all - kag, count:records.length, kaguraCount:kagN, normalCount:records.length - kagN};
+}
+const yen = function(n){ return Number(n||0).toLocaleString("ja-JP"); };
+
+function renderTotals(){
+  const t = totals();
+  document.getElementById("totAll").textContent = yen(t.all);
+  document.getElementById("totNormal").textContent = yen(t.normal);
+  document.getElementById("totKagura").textContent = yen(t.kagura);
+  document.getElementById("totCount").textContent = t.count + "件";
+}
+
+/* =========================== 候補検索 =========================== */
+function search(q){
+  const n = norm(q);
+  if (!n) return [];
+  const pre = [], mid = [];
+  activeRoster(false).forEach(function(p){
+    if (filter.dLock && p.dist !== filter.dLock) return;
+    const nm = norm(p.name), ym = norm(p.yomi);
+    if (nm.indexOf(n) === 0 || (ym && ym.indexOf(n) === 0)) pre.push(p);
+    else if (nm.indexOf(n) > 0 || (ym && ym.indexOf(n) > 0)) mid.push(p);
+  });
+  const rank = function(a,b){
+    if (b.hist !== a.hist) return b.hist - a.hist;
+    return a.name.length - b.name.length;
+  };
+  pre.sort(rank); mid.sort(rank);
+  const hit = pre.concat(mid);
+  if (!hit.length && filter.dLock && !isFree(filter.dLock)){   /* 氏子地区で見つからなければ全地区から探す */
+    const save = filter.dLock; filter.dLock = null;
+    const all = search(q); filter.dLock = save;
+    return all;
+  }
+  return hit.slice(0, 12);
+}
+
+/* ---- 地区の索引（葉のvalueと、そこまでの道筋） ---- */
+function districtIndex(){
+  const out = [], seen = {};
+  (function walk(ns, trail){
+    ns.forEach(function(n){
+      const k = n.kids || (n.kidsFn && n.kidsFn());
+      if (k) walk(k, trail.concat(n.label));
+      else if (n.value && !isPurged(n.value) && !isHidden(n.value) && !seen[n.value]){
+        seen[n.value] = 1;                       /* 同じ地区名は1件だけ（「（◯◯まで）」との重複を防ぐ） */
+        out.push({value:n.value, label:n.label, trail:trail.join(" › ")});
+      }
+    });
+  })(TREE, []);
+  return out;
+}
+
+/* ---- 屋号（ご芳名）と地区をまとめて検索する ---- */
+function searchAll(q){
+  const n = norm(q);
+  if (!n) return {names:[], dists:[]};
+  const rank = function(a, b){ return (b.pre - a.pre) || (a.len - b.len); };
+
+  const names = [];
+  activeRoster(false).forEach(function(p){
+    const nm = norm(p.name), ym = norm(p.yomi);
+    const pre = (nm.indexOf(n) === 0 || (ym && ym.indexOf(n) === 0)) ? 1 : 0;
+    if (pre || nm.indexOf(n) > 0 || (ym && ym.indexOf(n) > 0)){
+      names.push({p:p, pre:pre, len:p.name.length});
+    }
+  });
+  names.sort(rank);
+
+  const dists = [];
+  districtIndex().forEach(function(d){
+    const v = norm(d.value), l = norm(d.label);
+    const pre = (v.indexOf(n) === 0 || l.indexOf(n) === 0) ? 1 : 0;
+    if (pre || v.indexOf(n) > 0 || l.indexOf(n) > 0){
+      dists.push({d:d, pre:pre, len:d.value.length});
+    }
+  });
+  dists.sort(rank);
+
+  return {names:names.slice(0, 8).map(function(x){ return x.p; }),
+          dists:dists.slice(0, 8).map(function(x){ return x.d; })};
+}
+
+function renderDSearch(){
+  const q = document.getElementById("dq").value.trim();
+  const box = document.getElementById("dresults");
+  const grid = document.getElementById("districts");
+  const dch = document.getElementById("distChosen");
+  document.getElementById("dqclear").classList.toggle("hidden", !q);
+
+  if (!q){ box.classList.add("hidden"); renderCands(); return; }
+
+  grid.classList.add("hidden");
+  dch.classList.add("hidden");
+  box.classList.remove("hidden");
+  box.innerHTML = "";
+
+  const r = searchAll(q);
+  if (!r.names.length && !r.dists.length){
+    const d = document.createElement("div");
+    d.className = "candhead";
+    d.textContent = "見つかりません。ご芳名は下の「ご芳名」欄から新規登録できます。";
+    box.appendChild(d);
+    return;
+  }
+  const head = function(t){
+    const d = document.createElement("div");
+    d.className = "candhead"; d.textContent = t; box.appendChild(d);
+  };
+  if (r.names.length){
+    head("ご芳名（屋号）— 押すと地区も決まります");
+    r.names.forEach(function(p){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cand";
+      b.innerHTML = '<span class="badge">' + esc(p.dist) + '</span><span class="nm">' + esc(p.name) + '</span>';
+      b.addEventListener("click", function(){
+        clearDQ();
+        if (entryPicker) entryPicker.goTo(p.dist);
+        choose(p.dist, p.name);
+      });
+      box.appendChild(b);
+    });
+  }
+  if (r.dists.length){
+    head("地区");
+    r.dists.forEach(function(d){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cand";
+      b.innerHTML = '<span class="badge bdist">地区</span><span class="nm">' + esc(d.value) + '</span>' +
+                    (d.trail ? '<span class="last">' + esc(d.trail) + '</span>' : '');
+      b.addEventListener("click", function(){
+        clearDQ();
+        filter.dLock = d.value;
+        if (entryPicker) entryPicker.goTo(d.value);
+        renderCands(); renderBar();
+        window.scrollTo({top:0, behavior:"instant"});
+      });
+      box.appendChild(b);
+    });
+  }
+}
+function clearDQ(){
+  const i = document.getElementById("dq");
+  i.value = ""; i.blur();
+  document.getElementById("dqclear").classList.add("hidden");
+  document.getElementById("dresults").classList.add("hidden");
+}
+
+/* =========================== 描画：受付 =========================== */
+/* =========================== 地区ピッカー ===========================
+   TREEを辿るだけの汎用ピッカー。氏子6地区は1タップ、町内・町外は段階選択、
+   「県外」「一覧にない」は直接入力。葉のvalueがそのまま地区名になる。      */
+function makePicker(grid, cap, getCurrent, onPick, opts){
+  let path = [];                       /* 現在たどっている階層 */
+  function level(){
+    let ns = TREE;
+    path.forEach(function(n){ const k = n.kids || (n.kidsFn && n.kidsFn()); if (k) ns = k; });
+    return ns || TREE;
+  }
+  function title(){
+    if (!path.length) return "地区から選ぶ";
+    return path.map(function(n){ return n.label; }).join(" › ") + " — 選ぶ";
+  }
+  function mk(text, sub, cls, fn){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = esc(text) + (sub ? '<small>' + esc(sub) + '</small>' : "");
+    if (cls) b.className = cls;
+    b.addEventListener("click", fn);
+    grid.appendChild(b);
+    return b;
+  }
+  function freeInput(node){
+    grid.className = "dgrid one";
+    grid.innerHTML = "";
+    cap.textContent = path.map(function(n){ return n.label; }).join(" › ") + " — 市町村名を入力";
+    const wrap = document.createElement("div");
+    wrap.className = "freein";
+    wrap.innerHTML = '<input type="text" id="freeD" placeholder="' + esc(node.free) + '" autocomplete="off">' +
+                     '<button type="button" class="ok">決定</button>';
+    grid.appendChild(wrap);
+    const inp = wrap.querySelector("input"), okb = wrap.querySelector(".ok");
+    const go = function(){
+      const v = inp.value.trim();
+      if (!v) return;
+      if (node.group) addCustom(node.group, v);   /* 地区リストに追加して保存 */
+      path.pop();                       /* 入力欄の階層を抜けてから確定する */
+      onPick(v);
+    };
+    okb.addEventListener("click", go);
+    inp.addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); go(); } });
+    const back = document.createElement("button");
+    back.type = "button"; back.className = "back"; back.textContent = "◀ 戻る";
+    back.style.minHeight = "50px";
+    back.addEventListener("click", function(){ path.pop(); render(); });
+    grid.insertBefore(back, grid.firstChild);
+    setTimeout(function(){ inp.focus(); }, 30);
+  }
+  function render(){
+    const cur = getCurrent();
+    const ed = !!(opts && opts.edit && opts.edit());
+    const all = level().filter(function(n){ return !(n.value && isPurged(n.value)); });
+    const ns = ed ? all : all.filter(function(n){ return !(n.value && isHidden(n.value)); });
+    grid.innerHTML = "";
+    let maxLen = 0;
+    ns.forEach(function(n){ maxLen = Math.max(maxLen, n.label.length + ((n.kids || n.kidsFn || n.free) ? 2 : 0)); });
+    grid.className = "dgrid" + ((maxLen <= 8 && ns.length >= 5) ? " g3" : "");
+    if (ed){
+      const note = document.createElement("div");
+      note.className = "editnote";
+      note.textContent = "編集中：不要な地区を押すと一覧から消えます。消した地区は「戻す」で戻せます。";
+      grid.appendChild(note);
+    }
+    if (path.length){
+      const bb = mk("◀ 戻る", "", "back", function(){ path.pop(); render(); });
+      bb.style.gridColumn = "1/-1";
+      bb.style.minHeight = "50px";
+    }
+    let shown = false;
+    ns.forEach(function(n){
+      if (n.kids || n.kidsFn){
+        mk(n.label + " ›", "", "nav", function(){ path.push(n); render(); });
+      } else if (n.free){
+        if (!ed) mk(n.label + " ›", "", "nav", function(){ path.push(n); freeInput(n); });
+      } else if (ed){
+        const gone = isHidden(n.value);
+        const protectedOne = KOSHI.indexOf(n.value) >= 0;
+        if (protectedOne){ mk(n.label, "", "", function(){}); return; }
+        mk(n.label, n.sub2, gone ? "gone" : "del", function(){
+          const g = customGroupOf(n.value);
+          if (g) delCustom(g, n.value);           /* 追加した地区はそのまま削除 */
+          else toggleHidden(n.value);             /* 元からある地区は非表示に */
+          render();
+        });
+      } else {
+        const on = (cur === n.value);
+        if (on) shown = true;
+        mk(n.label, n.sub2, on ? "on" : "", function(){ onPick(on ? null : n.value); });
+      }
+    });
+    if (ed){
+      const marked = ns.filter(function(n){ return n.value && isHidden(n.value) && KOSHI.indexOf(n.value) < 0; })
+                       .map(function(n){ return n.value; });
+      if (marked.length){
+        const pb = mk("✕にした " + marked.length + " 件を完全に削除", "この画面からも消えます", "purge", function(){
+          confirmBox("次の地区を完全に削除します。<br><b>" + marked.map(esc).join("、") + "</b><br>" +
+                     "元に戻すには「登録済み一覧」→データの「地区リストを初期状態に戻す」が必要です。",
+            "完全に削除する", function(){ purgeHidden(marked); render(); flash("完全に削除しました"); });
+        });
+        pb.style.gridColumn = "1/-1";
+      }
+    }
+    cap.textContent = ed
+      ? (path.length ? path.map(function(n){ return n.label; }).join(" › ") + " — 編集中" : "編集中")
+      : (cur ? ("地区：" + cur + (isFree(cur) ? " — ご芳名を入力してください" : "") + (shown ? "（もう一度押すと解除）" : ""))
+             : title());
+  }
+  function findPath(value){
+    const hit = [];
+    const walk = function(ns, trail){
+      for (let i = 0; i < ns.length; i++){
+        const n = ns[i];
+        const k = n.kids || (n.kidsFn && n.kidsFn());
+        if (k){ if (walk(k, trail.concat(n))) return true; }
+        else if (n.value === value){ hit.push.apply(hit, trail); return true; }
+      }
+      return false;
+    };
+    walk(TREE, []);
+    return hit;
+  }
+  return {
+    render:render,
+    goTo:function(value){ path = findPath(value); render(); },
+    reset:function(){ path = []; render(); },
+    keep:function(){ render(); }     /* 階層は保ったまま再描画（選択の反映用） */
+  };
+}
+
+let entryPicker = null;
+let editDist = false;
+function renderDistricts(){
+  if (!entryPicker){
+    const g = document.getElementById("dgrid");
+    entryPicker = makePicker(g, document.getElementById("dcap"),
+      function(){ return filter.dLock; },
+      function(d){
+        filter.dLock = d;
+        if (draft.name){                    /* 先に名前を入れていた場合も反映 */
+          draft.dist = d;
+          document.getElementById("chosenDist").textContent = d;
+        }
+        entryPicker.keep();
+        renderCands(); renderBar();
+        if (d) window.scrollTo({top:0, behavior:"instant"});   /* 選択中の地区が常に見えるようにする */
+      },
+      {edit:function(){ return editDist; }});
+  }
+  entryPicker.render();
+}
+function setEditDist(on){
+  editDist = on;
+  const b = document.getElementById("dEdit");
+  b.textContent = on ? "完了" : "編集";
+  b.classList.toggle("on", on);
+  document.getElementById("districts").classList.remove("hidden");
+  document.getElementById("distChosen").classList.add("hidden");
+  if (on){ filter.dLock = null; if (draft.name) clearName(); }
+  entryPicker.keep();
+  if (!on) renderCands();
+}
+
+function renderCands(){
+  const dqv = document.getElementById("dq").value.trim();
+  document.getElementById("dEdit").classList.toggle("hidden", !!dqv);
+  const box = document.getElementById("cands");
+  const dist = document.getElementById("districts");
+  const dch = document.getElementById("distChosen");
+  const inp = document.getElementById("q");
+  const q = inp.value.trim();
+  document.getElementById("qclear").classList.toggle("hidden", !q);
+
+  /* ① 地区：選択済みなら折りたたんで、ご芳名欄を画面の見やすい位置へ上げる */
+  if (document.getElementById("dq").value.trim()){ return; }   /* 検索中は検索結果を優先 */
+  if (filter.dLock && !editDist){
+    document.getElementById("distChosenName").textContent = filter.dLock;
+    dch.classList.remove("hidden");
+    dist.classList.add("hidden");
+    inp.placeholder = isFree(filter.dLock) ? "タップしてご芳名を入力（新規）" : "タップして入力";
+  } else {
+    dch.classList.add("hidden");
+    dist.classList.remove("hidden");
+    inp.placeholder = "タップして入力";
+  }
+
+  /* ② 候補 */
+  if (draft.name){ box.classList.add("hidden"); return; }
+  let list;
+  if (q) list = search(q);
+  else if (filter.dLock) list = activeRoster(editName).filter(function(p){ return p.dist === filter.dLock; })
+                                      .sort(function(a, b){ return b.hist - a.hist; });
+  else list = [];
+
+  const editable = !!filter.dLock && !q;
+  document.getElementById("nEdit").classList.toggle("hidden", !editable);
+  if (!editable && editName){ editName = false; setNameEditBtn(false); }
+
+  if (!list.length && !q && !editName){ box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = "";
+
+  if (editName){
+    const note = document.createElement("div");
+    note.className = "candnote";
+    note.textContent = "編集中：不要なご芳名を押すと消えます。「戻す」で戻せます。";
+    box.appendChild(note);
+
+    list.forEach(function(p){
+      const k = nkey(p.dist, p.name);
+      const gone = hiddenN.indexOf(k) >= 0;
+      const b2 = document.createElement("button");
+      b2.type = "button"; b2.className = "cand " + (gone ? "gone" : "del");
+      b2.innerHTML = '<span class="badge">' + esc(p.dist) + '</span><span class="nm">' + esc(p.name) + '</span>' +
+                     '<span class="x">' + (gone ? "戻す" : "✕") + '</span>';
+      b2.addEventListener("click", function(){
+        if (isCustomName(p.dist, p.name)) removeCustomName(p.dist, p.name);
+        else toggleHiddenName(p.dist, p.name);
+        renderCands();
+      });
+      box.appendChild(b2);
+    });
+
+    const marked = list.filter(function(p){ return hiddenN.indexOf(nkey(p.dist, p.name)) >= 0; })
+                       .map(function(p){ return nkey(p.dist, p.name); });
+    if (marked.length){
+      const pb = document.createElement("button");
+      pb.type = "button"; pb.className = "cand act";
+      pb.innerHTML = '<span class="nm">✕にした ' + marked.length + ' 件を完全に削除</span>';
+      pb.addEventListener("click", function(){
+        confirmBox("次のご芳名を完全に削除します。<br><b>" +
+          marked.map(function(k){ return esc(k.split("|")[1]); }).join("、") + "</b><br>" +
+          "元に戻すには「登録済み一覧」→データの「地区・ご芳名リストを初期状態に戻す」が必要です。",
+          "完全に削除する", function(){ purgeNames(marked); renderCands(); flash("完全に削除しました"); });
+      });
+      box.appendChild(pb);
+    }
+
+    const ab = document.createElement("button");
+    ab.type = "button"; ab.className = "cand act";
+    ab.innerHTML = '<span class="nm">＋ ご芳名を追加</span>';
+    ab.addEventListener("click", function(){
+      const w = document.createElement("div");
+      w.className = "namein";
+      w.innerHTML = '<input type="text" id="newName" placeholder="ご芳名を入力" autocomplete="off">' +
+                    '<button type="button" class="ok">追加</button>';
+      ab.replaceWith(w);
+      const inp2 = w.querySelector("input"), okb = w.querySelector(".ok");
+      const go = function(){
+        const v = inp2.value.trim();
+        if (!v) return;
+        addName(filter.dLock, v);
+        renderCands();
+        flash("「" + v + "」を追加しました");
+      };
+      okb.addEventListener("click", go);
+      inp2.addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); go(); } });
+      inp2.focus();
+    });
+    box.appendChild(ab);
+    return;
+  }
+
+  list.forEach(function(p){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cand";
+    b.innerHTML = '<span class="badge">' + esc(p.dist) + '</span><span class="nm">' + esc(p.name) + '</span>';
+    b.addEventListener("click", function(){ choose(p.dist, p.name); });
+    box.appendChild(b);
+  });
+
+}
+
+function setNameEditBtn(on){
+  const b = document.getElementById("nEdit");
+  b.textContent = on ? "完了" : "編集";
+  b.classList.toggle("on", on);
+}
+
+function choose(dist, name){
+  draft.dist = dist || null; draft.name = name;
+  const inp = document.getElementById("q");
+  inp.value = "";
+  inp.blur();                            /* 確定したらキーボードを閉じる */
+  if (dist){
+    filter.dLock = dist;                 /* ①の表示も選んだ地区に合わせる */
+    entryPicker && entryPicker.keep();
+  }
+  document.getElementById("chosenDist").textContent = dist || "地区を選んでください";
+  document.getElementById("chosenName").textContent = name;
+  document.getElementById("chosen").classList.remove("hidden");
+  document.querySelector(".search").classList.add("hidden");
+  document.getElementById("step1hint").textContent = "";
+  renderCands();
+  renderBar();
+}
+/* 入力中のご芳名を確定する（↵・金額ボタン・登録ボタンのいずれでも） */
+function ensureName(){
+  if (draft.name) return true;
+  const v = document.getElementById("q").value.trim();
+  if (!v) return false;
+  choose(filter.dLock, v);
+  return true;
+}
+function clearName(){
+  draft.dist = null; draft.name = null;
+  document.getElementById("chosen").classList.add("hidden");
+  document.querySelector(".search").classList.remove("hidden");
+  document.getElementById("step1hint").textContent = "";
+  renderCands(); renderBar();
+}
+
+/* 金額 */
+function setAmt(a){
+  draft.amt = a;
+  document.querySelectorAll(".amt[data-amt]").forEach(function(b){
+    b.classList.toggle("on", Number(b.dataset.amt) === a);
+  });
+  renderBar();
+}
+function renderBar(){
+  const nm = document.getElementById("barNm");
+  const aw = document.getElementById("barAmtWrap");
+  const av = document.getElementById("barAmt");
+  const kd = document.getElementById("barKind");
+  const wr = document.getElementById("barWarn");
+  const sb = document.getElementById("submit");
+
+  if (draft.name){
+    nm.classList.remove("empty");
+    nm.innerHTML = draft.dist
+      ? ('<span class="dt">' + esc(draft.dist) + '</span>　' + esc(draft.name))
+      : ('<span class="dt" style="color:var(--shu)">地区を選んでください</span>　' + esc(draft.name));
+  } else {
+    nm.classList.add("empty");
+    nm.textContent = "ご芳名を選んでください";
+  }
+  if (draft.amt > 0){ aw.classList.remove("empty"); av.textContent = yen(draft.amt); }
+  else { aw.classList.add("empty"); av.textContent = "—"; }
+
+  kd.textContent = draft.kagura ? "神楽団御花" : "通常御花";
+  kd.classList.toggle("kg", draft.kagura);
+  const rv = String(document.getElementById("rno").value || "").trim();
+  let rc = document.getElementById("barRno");
+  if (!rc){
+    rc = document.createElement("span"); rc.className = "rno"; rc.id = "barRno";
+    document.getElementById("barAmtWrap").appendChild(rc);
+  }
+  rc.textContent = rv ? ("領収 " + rv) : "";
+  rc.classList.toggle("hidden", !rv);
+
+  let w = "";
+  if (draft.name && draft.dist){
+    const dup = records.filter(function(r){ return r.dist === draft.dist && r.name === draft.name; });
+    if (dup.length){
+      w = "同じご芳名が登録済み（" + dup.map(function(r){
+        return "No." + (records.indexOf(r) + 1) + " " + yen(r.amt) + "円" + (r.kagura ? "・神楽団" : "");
+      }).join("／") + "）";
+    }
+  }
+  if (draft.amt >= 50000) w = (w ? w + "／" : "") + "高額です。金額をご確認ください";
+  wr.textContent = w; wr.classList.toggle("hidden", !w);
+  sb.disabled = !(draft.name && draft.dist && draft.amt > 0);
+  document.documentElement.style.setProperty("--bar-h", (w ? 136 : 112) + "px");
+}
+
+/* 登録 */
+function submit(){
+  if (!(draft.name && draft.dist && draft.amt > 0)) return;
+  const rec = {id:seq++, dist:draft.dist, name:draft.name, amt:draft.amt, kagura:draft.kagura,
+               rno:String(document.getElementById("rno").value || "").trim()};
+  nextRno = rec.rno;                         /* 領収番号は領収書の束の番号。束を替えるまで同じ番号を引き継ぐ */
+  records.push(rec);
+  const learned = (mode === "live") && learnName(rec.dist, rec.name);   /* 練習モードでは名簿を増やさない */
+  save(); renderTotals(); renderRecent(); renderList();
+  toast(rec, learned);
+  resetForm(true);
+}
+function resetForm(focus){
+  draft = {dist:null, name:null, amt:0, kagura:false};
+  padVal = ""; document.getElementById("padV").textContent = "0";
+  document.getElementById("pad").classList.add("hidden");
+  const inp = document.getElementById("q");
+  inp.value = "";
+  inp.blur();                                   /* 次の人の入力でキーボードを出しっぱなしにしない */
+  document.getElementById("chosen").classList.add("hidden");
+  document.querySelector(".search").classList.remove("hidden");
+  document.getElementById("step1hint").textContent = "";
+  document.getElementById("step2hint").textContent = "";
+  document.getElementById("rno").value = nextRno;
+  draft.rno = nextRno;
+  editName = false; setNameEditBtn(false);
+  setKag(false);
+  setAmt(0);
+  filter.dLock = null;
+  clearDQ();
+  editDist = false;
+  const eb = document.getElementById("dEdit");
+  if (eb){ eb.textContent = "編集"; eb.classList.remove("on"); }
+  if (entryPicker) entryPicker.reset(); else renderDistricts();
+  renderCands(); renderBar();
+  window.scrollTo({top:0, behavior:"instant"});
+  /* タッチ端末ではフリック画面（キーボード）を自動で開かない。
+     ご芳名欄をタップしたときだけ開く。PCではEnter連打で入力できるようフォーカスする。 */
+  if (focus && !isTouch()) inp.focus();
+}
+function isTouch(){ return window.matchMedia("(hover:none)").matches; }
+
+function setKag(on){
+  draft.kagura = on;
+  const b = document.getElementById("kagBtn");
+  b.classList.toggle("on", on);
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  renderBar();
+}
+
+function toast(rec, learned){
+  const t = document.getElementById("toast");
+  t.innerHTML = '<div><div class="t1">登録しました　No.' + records.length + '</div>' +
+    '<div class="t2">' + esc(rec.dist) + '　' + esc(rec.name) + '　' + yen(rec.amt) + '円' +
+    (rec.kagura ? '　※神楽団' : '') + '</div></div>' +
+    '<button id="undoBtn">取り消す</button>';
+  t.classList.remove("hidden");
+  t.querySelector("#undoBtn").addEventListener("click", function(){
+    const i = records.findIndex(function(r){ return r.id === rec.id; });
+    if (i >= 0) records.splice(i, 1);
+    if (learned) removeCustomName(rec.dist, rec.name);   /* 取り消した登録で覚えたご芳名も名簿から外す */
+    save(); renderTotals(); renderRecent(); renderList(); renderBar();
+    t.classList.add("hidden");
+  });
+  clearTimeout(lastToastTimer);
+  lastToastTimer = setTimeout(function(){ t.classList.add("hidden"); }, 4200);
+}
+
+function renderRecent(){
+  const wrap = document.getElementById("recent");
+  const box = document.getElementById("recentRows");
+  const last = records.slice(-3).reverse();
+  wrap.classList.toggle("hidden", !last.length);
+  box.innerHTML = "";
+  last.forEach(function(r){
+    const no = records.indexOf(r) + 1;
+    const d = document.createElement("div");
+    d.className = "recent-row";
+    d.innerHTML = '<span class="no">' + no + '</span>' +
+      '<span class="nm">' + esc(r.dist) + '　' + esc(r.name) + '</span>' +
+      (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
+      '<span class="am">' + yen(r.amt) + '</span>';
+    const b = document.createElement("button");
+    b.className = "edit"; b.type = "button"; b.textContent = "修正";
+    b.addEventListener("click", function(){ editRecord(r.id); });
+    d.appendChild(b);
+    box.appendChild(d);
+  });
+}
+
+/* =========================== 一覧 =========================== */
+function refreshDistFilter(){
+  const sel = document.getElementById("fd");
+  const used = [];
+  records.forEach(function(r){ if (used.indexOf(r.dist) < 0) used.push(r.dist); });
+  used.sort(function(a, b){
+    const ia = DISTRICTS.indexOf(a), ib = DISTRICTS.indexOf(b);
+    return (ia < 0 ? 9999 : ia) - (ib < 0 ? 9999 : ib);
+  });
+  if (sel.dataset.sig === used.join("|")) return;
+  sel.dataset.sig = used.join("|");
+  sel.innerHTML = '<option value="">すべての地区</option>' +
+    used.map(function(d){ return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join("");
+  sel.value = (used.indexOf(filter.d) >= 0) ? filter.d : "";
+  if (!sel.value) filter.d = "";
+}
+
+let dragState = null;
+let dragEndAt = 0;
+
+/* 一覧のドラッグ並べ替え（☰ を起点にいつでも可能） */
+function startDrag(e, row, box){
+  e.preventDefault();
+  e.stopPropagation();
+  row.classList.add("dragging");
+  dragState = {row:row, box:box, pid:e.pointerId, edge:0, raf:0};
+  /* 行をDOM内で動かすとポインタ捕捉が外れるため、documentで受ける */
+  document.addEventListener("pointermove", moveDrag, {passive:false});
+  document.addEventListener("pointerup", endDrag);
+  document.addEventListener("pointercancel", endDrag);
+  document.body.style.touchAction = "none";
+  const step = function(){
+    if (!dragState) return;
+    if (dragState.edge) window.scrollBy(0, dragState.edge);
+    dragState.raf = requestAnimationFrame(step);
+  };
+  dragState.raf = requestAnimationFrame(step);
+}
+function moveDrag(e){
+  if (!dragState || e.pointerId !== dragState.pid) return;
+  e.preventDefault();
+  const box = dragState.box, row = dragState.row, y = e.clientY;
+  const others = Array.prototype.filter.call(box.children, function(c){ return c !== row; });
+  let after = null;
+  for (let i = 0; i < others.length; i++){
+    const r = others[i].getBoundingClientRect();
+    if (y < r.top + r.height / 2){ after = others[i]; break; }
+  }
+  if (after){ if (after.previousSibling !== row) box.insertBefore(row, after); }
+  else if (box.lastChild !== row) box.appendChild(row);
+  dragState.edge = (y < 150) ? -14 : (y > window.innerHeight - 170 ? 14 : 0);
+}
+function endDrag(e){
+  if (!dragState) return;
+  if (e && e.pointerId !== dragState.pid) return;
+  document.removeEventListener("pointermove", moveDrag, {passive:false});
+  document.removeEventListener("pointerup", endDrag);
+  document.removeEventListener("pointercancel", endDrag);
+  document.body.style.touchAction = "";
+  cancelAnimationFrame(dragState.raf);
+  dragState.row.classList.remove("dragging");
+  const box = dragState.box;
+  dragState = null;
+  dragEndAt = Date.now();
+
+  /* 画面に見えている行の新しい並び順を、records 本体に反映する。
+     絞り込み中でも、見えている行が占めていた位置だけを入れ替える。 */
+  let ids = Array.prototype.map.call(box.children, function(c){ return Number(c.dataset.id); });
+  if (!filter.asc) ids = ids.slice().reverse();      /* 新しい順表示は逆向き */
+  const map = {};
+  records.forEach(function(r){ map[r.id] = r; });
+  const slots = [];
+  records.forEach(function(r, i){ if (ids.indexOf(r.id) >= 0) slots.push(i); });
+  slots.forEach(function(idx, k){ if (map[ids[k]]) records[idx] = map[ids[k]]; });
+
+  save(); renderList(); renderRecent(); renderTotals();
+  flash("並び順を変更しました");
+}
+
+function renderList(){
+  refreshDistFilter();
+  const box = document.getElementById("rows");
+  const info = document.getElementById("listInfo");
+  const empty = document.getElementById("emptyState");
+  const q = norm(filter.q);
+  const view = [];
+  records.forEach(function(r, i){
+    if (filter.d && r.dist !== filter.d) return;
+    if (filter.k && !r.kagura) return;
+    if (q && norm(r.name).indexOf(q) < 0 && norm(r.dist).indexOf(q) < 0 && norm(r.rno).indexOf(q) < 0) return;
+    view.push({r:r, no:i + 1});
+  });
+  if (!filter.asc) view.reverse();
+  box.innerHTML = "";
+  view.forEach(function(v){
+    const r = v.r;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "row";
+    b.dataset.id = r.id;
+    b.innerHTML = '<span class="no">' + v.no + '</span>' +
+      '<span class="mid"><span class="nm">' + esc(r.name) + '</span>' +
+      '<span class="dt">' + (r.rno ? "領収 " + esc(r.rno) + "　" : "") + esc(r.dist) + '</span></span>' +
+      (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
+      '<span class="am">' + yen(r.amt) + '</span>' +
+      '<span class="handle" aria-label="押したまま上下に動かすと並べ替え">☰</span>';
+    b.addEventListener("click", function(){
+      if (Date.now() - dragEndAt < 250) return;      /* 並べ替え直後の誤タップを防ぐ */
+      editRecord(r.id);
+    });
+    const h = b.querySelector(".handle");
+    h.addEventListener("pointerdown", function(e){ startDrag(e, b, box); });
+    h.addEventListener("click", function(e){ e.stopPropagation(); e.preventDefault(); });
+    box.appendChild(b);
+  });
+  const t = totals();
+  const sum = view.reduce(function(a, v){ return a + v.r.amt; }, 0);
+  info.innerHTML = records.length
+    ? ("表示 " + view.length + "件／" + yen(sum) + "円　（全" + t.count + "件　通常" + t.normalCount +
+       "件・神楽団" + t.kaguraCount + "件）" +
+       '<span class="howto">行をタップで修正　／　<b>☰</b> を押したまま上下で並べ替え</span>')
+    : "";
+  empty.classList.toggle("hidden", records.length > 0);
+  box.classList.toggle("hidden", view.length === 0);
+}
+
+function editRecord(id){
+  const r = records.find(function(x){ return x.id === id; });
+  if (!r) return;
+  const no = records.indexOf(r) + 1;
+  const cur = {dist:r.dist, name:r.name, amt:r.amt, kagura:!!r.kagura, rno:r.rno || ""};
+
+  function form(){
+    openModal(
+      '<h2>No.' + no + ' を修正</h2>' +
+      '<div class="f"><label>地区名</label>' +
+        '<button type="button" class="distbtn" id="eD">' + esc(cur.dist) + '<small>タップして選び直す ›</small></button></div>' +
+      '<div class="f"><label>ご芳名</label><input id="eN" value="' + esc(cur.name) + '"></div>' +
+      '<div class="f"><label>金額（円）</label><input id="eA" type="tel" inputmode="numeric" value="' + cur.amt + '"></div>' +
+      '<div class="f"><label>領収番号</label><input id="eR" value="' + esc(cur.rno) + '" placeholder="なし"></div>' +
+      '<button class="kag' + (cur.kagura ? " on" : "") + '" id="eK" style="width:100%">' +
+        '<span class="box">✓</span><span class="tx">神楽団御花</span></button>' +
+      '<div class="sheet-btns">' +
+        '<button class="b-ghost" data-close="1">やめる</button>' +
+        '<button class="b-primary" id="eSave">保存する</button>' +
+        '<button class="b-danger" id="eDel">この登録を削除する</button>' +
+      '</div>',
+      function(root){
+        const grab = function(){
+          cur.name = root.querySelector("#eN").value;
+          cur.amt = root.querySelector("#eA").value;
+          cur.rno = root.querySelector("#eR").value.trim();
+        };
+        root.querySelector("#eD").addEventListener("click", function(){ grab(); pick(); });
+        const kb = root.querySelector("#eK");
+        kb.addEventListener("click", function(){ cur.kagura = !cur.kagura; kb.classList.toggle("on", cur.kagura); });
+        root.querySelector("#eSave").addEventListener("click", function(){
+          grab();
+          const nm = String(cur.name).trim();
+          const am = parseInt(String(cur.amt).replace(/[^0-9]/g, ""), 10);
+          if (!nm || !am || am <= 0){ alertBox("ご芳名と金額を入力してください"); return; }
+          r.dist = cur.dist; r.name = nm; r.amt = am; r.kagura = cur.kagura; r.rno = cur.rno;
+          if (mode === "live") learnName(r.dist, r.name);
+          save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderBar();
+          flash("No." + no + " を修正しました");
+        });
+        root.querySelector("#eDel").addEventListener("click", function(){
+          confirmBox("No." + no + "「" + esc(r.dist) + "　" + esc(r.name) + "　" + yen(r.amt) + "円」を削除します。<br>この操作は取り消せません。",
+            "削除する", function(){
+              const i = records.indexOf(r);
+              if (i >= 0) records.splice(i, 1);
+              save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderBar();
+              flash("削除しました");
+            });
+        });
+      });
+  }
+
+  function pick(){
+    openModal(
+      '<h2>地区を選び直す</h2>' +
+      '<div id="pkCap" style="font-size:12.5px;color:var(--ink3);font-weight:700;margin-bottom:7px"></div>' +
+      '<div class="dgrid" id="pkDg"></div>' +
+      '<div class="sheet-btns"><button class="b-ghost" id="pkCancel" style="grid-column:1/-1">変更せずに戻る</button></div>',
+      function(root){
+        makePicker(root.querySelector("#pkDg"), root.querySelector("#pkCap"),
+          function(){ return cur.dist; },
+          function(d){ if (d) cur.dist = d; form(); }).render();
+        root.querySelector("#pkCancel").addEventListener("click", form);
+      });
+  }
+  form();
+}
+
+/* =========================== PDF出力 =========================== */
+function rowsForExport(){
+  return records.map(function(r, i){
+    return [i + 1, r.dist, r.name, r.amt, r.kagura ? KAGURA_NOTE : "", r.rno || ""];
+  });
+}
+
+/* A4縦（595.28×841.89pt）を2倍解像度のcanvasに描き、画像としてPDFに埋め込む。
+   端末のフォントで描画するため、どんな漢字・記号でも文字化けしない。 */
+const PW = 1190, PH = 1684, ML = 70, MR = 1120;
+function drawPage(rows, pageNo, pageCount){
+  const c = document.createElement("canvas");
+  c.width = PW; c.height = PH;
+  const g = c.getContext("2d");
+  const JP = '"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",sans-serif';
+  g.fillStyle = "#fff"; g.fillRect(0, 0, PW, PH);
+  g.fillStyle = "#000"; g.textBaseline = "alphabetic";
+  let y;
+  if (pageNo === 1){
+    const t = totals(), d = new Date();
+    g.font = "700 46px " + JP;
+    g.fillText("御神前・御花一覧", ML, 100);
+    g.font = "400 24px " + JP; g.fillStyle = "#444";
+    g.fillText("伊勢神社　秋季奉納神楽　" + d.getFullYear() + "年", ML, 142);
+    g.textAlign = "right";
+    g.fillText("出力 " + d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " +
+               String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), MR, 142);
+    g.textAlign = "left";
+    /* 集計欄 */
+    g.strokeStyle = "#000"; g.lineWidth = 2;
+    g.strokeRect(ML, 172, MR - ML, 118);
+    const cells = [["御花合計", t.all], ["御神前（通常御花）", t.normal], ["神楽団御花", t.kagura]];
+    const cw = (MR - ML) / 3;
+    cells.forEach(function(cl, i){
+      const x = ML + cw * i;
+      if (i) { g.beginPath(); g.moveTo(x, 172); g.lineTo(x, 290); g.stroke(); }
+      g.fillStyle = "#555"; g.font = "700 20px " + JP;
+      g.fillText(cl[0], x + 20, 206);
+      g.fillStyle = "#000"; g.font = "700 40px " + JP;
+      g.fillText(Number(cl[1]).toLocaleString("ja-JP") + " 円", x + 20, 262);
+    });
+    g.fillStyle = "#444"; g.font = "400 22px " + JP;
+    g.fillText("登録件数　" + t.count + "件（通常 " + t.normalCount + "件・神楽団 " + t.kaguraCount + "件）", ML, 328);
+    y = 372;
+  } else {
+    g.font = "700 26px " + JP;
+    g.fillText("御神前・御花一覧（続き）", ML, 96);
+    y = 140;
+  }
+  /* 表ヘッダ */
+  const X_NO = 118, X_RN = 138, X_DT = 268, X_NM = 528, X_AM = 900, X_RM = 922;
+  g.fillStyle = "#eee"; g.fillRect(ML, y - 30, MR - ML, 42);
+  g.fillStyle = "#000"; g.font = "700 22px " + JP;
+  g.textAlign = "right"; g.fillText("番号", X_NO, y);
+  g.textAlign = "left";
+  g.fillText("領収No", X_RN, y); g.fillText("地区名", X_DT, y); g.fillText("ご芳名", X_NM, y);
+  g.textAlign = "right"; g.fillText("金額", X_AM, y);
+  g.textAlign = "left"; g.fillText("備考", X_RM, y);
+  g.strokeStyle = "#000"; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(ML, y + 12); g.lineTo(MR, y + 12); g.stroke();
+
+  let ry = y + 50;
+  g.font = "400 24px " + JP;
+  rows.forEach(function(r){
+    g.textAlign = "right"; g.fillStyle = "#666"; g.fillText(r[0], X_NO, ry);
+    g.fillStyle = "#000"; g.textAlign = "left";
+    g.font = "500 22px " + JP;
+    if (r[5]) g.fillText(fit(g, r[5], 120), X_RN, ry);
+    g.font = "400 23px " + JP;
+    g.fillText(fit(g, r[1], 250), X_DT, ry);
+    g.font = "600 25px " + JP;
+    g.fillText(fit(g, r[2], 360), X_NM, ry);
+    g.font = "400 24px " + JP;
+    g.textAlign = "right"; g.fillText(Number(r[3]).toLocaleString("ja-JP"), X_AM, ry);
+    g.textAlign = "left"; g.font = "400 20px " + JP;
+    if (r[4]) g.fillText(r[4], X_RM, ry);
+    g.font = "400 24px " + JP;
+    g.strokeStyle = "#ddd"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(ML, ry + 13); g.lineTo(MR, ry + 13); g.stroke();
+    ry += 38;
+  });
+  if (pageNo === pageCount){
+    const t = totals();
+    g.strokeStyle = "#000"; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(ML, ry - 8); g.lineTo(MR, ry - 8); g.stroke();
+    g.font = "700 26px " + JP; g.textAlign = "left";
+    g.fillText("計", X_RN, ry + 30);
+    g.textAlign = "right";
+    g.fillText(t.all.toLocaleString("ja-JP"), X_AM, ry + 30);
+    g.textAlign = "left";
+  }
+  g.textAlign = "center"; g.fillStyle = "#666"; g.font = "400 20px " + JP;
+  g.fillText(pageNo + " / " + pageCount, PW / 2, 1640);
+  return c;
+}
+function fit(g, text, maxW){
+  if (g.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && g.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return t + "…";
+}
+function jpegBytes(canvas){
+  const b64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
+  const bin = atob(b64);
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+function buildPdf(){
+  const all = rowsForExport();
+  const FIRST = 30, REST = 37;
+  const pages = [];
+  let i = 0;
+  while (i < all.length || pages.length === 0){
+    const n = pages.length === 0 ? FIRST : REST;
+    pages.push(all.slice(i, i + n));
+    i += n;
+  }
+  const imgs = pages.map(function(rows, idx){ return jpegBytes(drawPage(rows, idx + 1, pages.length)); });
+
+  const latin = function(str){
+    const u = new Uint8Array(str.length);
+    for (let k = 0; k < str.length; k++) u[k] = str.charCodeAt(k) & 0xff;
+    return u;
+  };
+  const chunks = []; let len = 0;
+  const put = function(x){ const u = (typeof x === "string") ? latin(x) : x; chunks.push(u); len += u.length; };
+  const offs = [0];
+  put("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  const objn = 2 + imgs.length * 3;
+  const kids = imgs.map(function(_, k){ return (3 + k * 3) + " 0 R"; }).join(" ");
+  const obj = function(n, head, stream){
+    offs[n] = len;
+    put(n + " 0 obj\n" + head + "\n");
+    if (stream){ put("stream\n"); put(stream); put("\nendstream\n"); }
+    put("endobj\n");
+  };
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, "<< /Type /Pages /Kids [" + kids + "] /Count " + imgs.length + " >>");
+  imgs.forEach(function(img, k){
+    const pn = 3 + k * 3, cn = pn + 1, im = pn + 2;
+    obj(pn, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] " +
+            "/Resources << /XObject << /Im0 " + im + " 0 R >> >> /Contents " + cn + " 0 R >>");
+    const cs = "q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
+    obj(cn, "<< /Length " + cs.length + " >>", latin(cs));
+    obj(im, "<< /Type /XObject /Subtype /Image /Width " + PW + " /Height " + PH +
+            " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + img.length + " >>", img);
+  });
+  const xref = len;
+  let x = "xref\n0 " + (objn + 1) + "\n0000000000 65535 f \n";
+  for (let n = 1; n <= objn; n++) x += String(offs[n]).padStart(10, "0") + " 00000 n \n";
+  x += "trailer\n<< /Size " + (objn + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n";
+  put(x);
+  const out = new Uint8Array(len);
+  let p = 0;
+  chunks.forEach(function(c){ out.set(c, p); p += c.length; });
+  return out;
+}
+function fname(prefix, ext){
+  const d = new Date();
+  const p = function(n){ return String(n).padStart(2, "0"); };
+  return prefix + "_" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + ext;
+}
+async function savePdf(){
+  if (!records.length){ alertBox("登録データがありません"); return; }
+  let data;
+  try{ data = buildPdf(); }
+  catch(e){ alertBox("PDFを作成できませんでした：" + e.message); return; }
+  await saveFile(fname("御花一覧", ".pdf"), data, "application/pdf");
+}
+async function saveFile(name, data, type){
+  let dl = null;
+  try{ dl = await (window.claude && window.claude.use ? window.claude.use("downloads") : null); }catch(e){ dl = null; }
+  if (dl){
+    try{ await dl.save({filename:name, data:data}); flash("「" + name + "」を保存しました"); }
+    catch(e){ if (!(e && e.code === "declined")) alertBox("保存できませんでした。もう一度お試しください。"); }
+    return;
+  }
+  try{
+    const url = URL.createObjectURL(new Blob([data], {type:type}));
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 2000);
+    flash("「" + name + "」を保存しました");
+  }catch(e){ alertBox("保存できませんでした。もう一度お試しください。"); }
+}
+
+/* =========================== バックアップ ===========================
+   登録データと地区・ご芳名リストの編集内容を1つのファイルに書き出し、
+   同じ端末でも別の端末でも読み戻せるようにする。                        */
+const BACKUP_APP = "ise_ohana_backup";
+async function saveBackup(){
+  if (!records.length){ alertBox("登録データがありません"); return; }
+  const o = {app:BACKUP_APP, v:1, at:Date.now(), seq:seq, rno:nextRno, records:records,
+             lists:{customD:customD, hiddenD:hiddenD, purgedD:purgedD,
+                    customN:customN, hiddenN:hiddenN, purgedN:purgedN}};
+  await saveFile(fname("御花バックアップ", ".json"), new TextEncoder().encode(JSON.stringify(o)), "application/json");
+}
+function restoreBackup(file){
+  const fr = new FileReader();
+  fr.onerror = function(){ alertBox("ファイルを読み込めませんでした"); };
+  fr.onload = function(){
+    let o = null;
+    try{ o = JSON.parse(String(fr.result)); }catch(e){ o = null; }
+    if (!o || o.app !== BACKUP_APP || !Array.isArray(o.records)){
+      alertBox("このファイルは御花受付のバックアップではありません"); return;
+    }
+    const recs = [];
+    o.records.forEach(function(r){
+      if (!r || !r.name || typeof r.amt !== "number" || !(r.amt > 0)) return;
+      recs.push({id:0, dist:String(r.dist || "不明"), name:String(r.name), amt:r.amt, kagura:!!r.kagura,
+                 rno:typeof r.rno === "string" ? r.rno : ""});
+    });
+    const sum = recs.reduce(function(a, r){ return a + r.amt; }, 0);
+    const d = new Date(o.at || 0);
+    const when = o.at ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " +
+                 String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")) : "不明";
+    const t = totals();
+    confirmBox("バックアップ（保存日時 " + esc(when) + "）<br><b>" + recs.length + "件・" + yen(sum) + "円</b> を読み込みます。<br>" +
+      "現在の <b>" + t.count + "件・" + yen(t.all) + "円</b> は置き換えられ、元に戻せません。" +
+      (mode === "practice" ? "<br>※練習モードのデータとして読み込みます。" : ""),
+      "復元する", function(){
+        recs.forEach(function(r, i){ r.id = i + 1; });
+        records = recs; seq = recs.length + 1;
+        nextRno = typeof o.rno === "string" ? o.rno : "";
+        const L = o.lists;
+        if (L && typeof L === "object"){
+          const obj = function(x){ return (x && typeof x === "object" && !Array.isArray(x)) ? x : {}; };
+          const arr = function(x){ return Array.isArray(x) ? x : []; };
+          customD = obj(L.customD); hiddenD = arr(L.hiddenD); purgedD = arr(L.purgedD);
+          customN = obj(L.customN); hiddenN = arr(L.hiddenN); purgedN = arr(L.purgedN);
+          saveCustom(); saveHidden(); savePurged(); saveNames();
+        }
+        save(); renderTotals(); renderList(); renderRecent(); resetForm(false);
+        flash(recs.length + "件を復元しました");
+      });
+  };
+  fr.readAsText(file);
+}
+
+/* =========================== モーダル =========================== */
+function openModal(html, after){
+  const host = document.getElementById("modalHost");
+  host.innerHTML = '<div class="modal"><div class="sheet">' + html + '</div></div>';
+  const m = host.querySelector(".modal");
+  m.addEventListener("click", function(e){ if (e.target === m) closeModal(); });
+  host.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click", closeModal); });
+  if (after) after(host);
+}
+function closeModal(){ document.getElementById("modalHost").innerHTML = ""; }
+function confirmBox(html, okLabel, onOk){
+  openModal('<h2>確認</h2><div class="warnbox">' + html + '</div>' +
+    '<div class="sheet-btns"><button class="b-ghost" data-close="1">やめる</button>' +
+    '<button class="b-primary" id="cfOk">' + esc(okLabel) + '</button></div>',
+    function(root){ root.querySelector("#cfOk").addEventListener("click", function(){ closeModal(); onOk(); }); });
+}
+function alertBox(msg){
+  openModal('<h2>入力を確認してください</h2><div class="warnbox">' + esc(msg) + '</div>' +
+    '<div class="sheet-btns"><button class="b-primary" data-close="1" style="grid-column:1/-1">閉じる</button></div>');
+}
+function flash(msg){
+  const t = document.getElementById("toast");
+  t.innerHTML = '<div class="t2">' + esc(msg) + '</div>';
+  t.classList.remove("hidden");
+  clearTimeout(lastToastTimer);
+  lastToastTimer = setTimeout(function(){ t.classList.add("hidden"); }, 2600);
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* =========================== 起動 =========================== */
+function switchTab(name){
+  document.querySelectorAll(".tabs button").forEach(function(b){
+    b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+  });
+  document.getElementById("view-entry").classList.toggle("hidden", name !== "entry");
+  document.getElementById("view-list").classList.toggle("hidden", name !== "list");
+  document.getElementById("bar").classList.toggle("hidden", name !== "entry");
+  if (name === "list") renderList();
+  window.scrollTo({top:0, behavior:"instant"});
+}
+function setMode(m){
+  mode = m;
+  document.getElementById("practice").classList.toggle("hidden", m !== "practice");
+  load(); renderTotals(); renderRecent(); renderList(); resetForm(false);
+}
+
+function init(){
+  renderDistricts();
+
+  document.querySelectorAll(".tabs button").forEach(function(b){
+    b.addEventListener("click", function(){ switchTab(b.dataset.tab); });
+  });
+
+  const dq = document.getElementById("dq");
+  dq.addEventListener("input", renderDSearch);
+  dq.addEventListener("compositionupdate", function(){ setTimeout(renderDSearch, 0); });
+  dq.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){
+      if (e.isComposing || e.keyCode === 229) return;   /* 変換中の確定は無視 */
+      e.preventDefault();
+      const first = document.querySelector("#dresults .cand");
+      if (first) first.click();
+    } else if (e.key === "Escape"){ clearDQ(); renderCands(); }
+  });
+  document.getElementById("dqclear").addEventListener("click", function(){
+    clearDQ(); renderCands(); dq.focus();
+  });
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", renderCands);
+  q.addEventListener("compositionupdate", function(){ setTimeout(renderCands, 0); });
+  q.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){
+      if (e.isComposing || e.keyCode === 229) return;   /* 変換中の確定は無視 */
+      e.preventDefault();
+      if (!draft.name){ ensureName(); }
+      else if (!document.getElementById("submit").disabled) submit();
+    } else if (e.key === "Escape"){ q.value = ""; renderCands(); }
+  });
+  document.getElementById("qclear").addEventListener("click", function(){
+    q.value = ""; renderCands(); q.focus();
+  });
+  document.getElementById("chosenChange").addEventListener("click", function(){
+    clearName();
+    if (!isTouch()) document.getElementById("q").focus();
+  });
+  /* 「変更」は直前に開いていた階層のまま開き直す（一番上には戻さない） */
+  document.getElementById("distChange").addEventListener("click", function(){
+    filter.dLock = null;
+    if (draft.name) clearName();
+    if (entryPicker) entryPicker.keep();
+    renderCands(); renderBar();
+    window.scrollTo({top:0, behavior:"instant"});
+  });
+  document.getElementById("dEdit").addEventListener("click", function(){ setEditDist(!editDist); });
+  document.getElementById("nEdit").addEventListener("click", function(){
+    editName = !editName; setNameEditBtn(editName); renderCands();
+  });
+
+  /* 領収番号：手書き領収書の束の番号。登録しても変わらず、束を替えたら＋−か直接入力で変える */
+  const rno = document.getElementById("rno");
+  rno.addEventListener("focus", ensureName);
+  rno.addEventListener("input", renderBar);
+  document.getElementById("rnoPlus").addEventListener("click", function(){
+    rno.value = rno.value.trim() ? incRno(rno.value.trim(), 1) : "1"; renderBar();
+  });
+  document.getElementById("rnoMinus").addEventListener("click", function(){
+    rno.value = rno.value.trim() ? incRno(rno.value.trim(), -1) : ""; renderBar();
+  });
+
+  document.getElementById("fsort").addEventListener("click", function(e){
+    filter.asc = !filter.asc;
+    e.currentTarget.textContent = (filter.asc ? "古い順 ⇅" : "新しい順 ⇅");
+    renderList();
+  });
+
+  document.querySelectorAll(".amt[data-amt]").forEach(function(b){
+    b.addEventListener("click", function(){
+      ensureName();                       /* 金額に進んだ時点でご芳名を確定 */
+      const v = Number(b.dataset.amt);
+      setAmt(draft.amt === v ? 0 : v);
+      document.getElementById("pad").classList.add("hidden");
+    });
+  });
+  document.getElementById("padOpen").addEventListener("click", function(){
+    ensureName();
+    const p = document.getElementById("pad");
+    p.classList.toggle("hidden");
+    padVal = ""; document.getElementById("padV").textContent = "0";
+    if (!p.classList.contains("hidden")) p.scrollIntoView({block:"nearest"});
+  });
+  document.querySelectorAll(".pad-keys button").forEach(function(b){
+    b.addEventListener("click", function(){
+      const k = b.dataset.k;
+      if (k === "back") padVal = padVal.slice(0, -1);
+      else if (k === "ok"){
+        const v = parseInt(padVal || "0", 10);
+        if (v > 0){ setAmt(v); document.getElementById("pad").classList.add("hidden");
+          document.querySelectorAll(".amt[data-amt]").forEach(function(x){ x.classList.remove("on"); }); }
+        return;
+      } else if (padVal.length < 9) padVal += k;
+      document.getElementById("padV").textContent = padVal ? yen(parseInt(padVal, 10)) : "0";
+    });
+  });
+
+  document.getElementById("kagBtn").addEventListener("click", function(){ ensureName(); setKag(!draft.kagura); });
+  document.getElementById("submit").addEventListener("click", function(){ ensureName(); submit(); });
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Enter" && document.activeElement !== q && !document.querySelector(".modal")){
+      if (e.isComposing || e.keyCode === 229) return;                              /* 変換中の確定は無視 */
+      if (document.getElementById("view-entry").classList.contains("hidden")) return;   /* 一覧タブでは登録しない */
+      const a = document.activeElement;                /* 検索欄などの入力中は登録しない（領収番号欄は除く） */
+      if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.id !== "rno") return;
+      if (!document.getElementById("submit").disabled){ e.preventDefault(); submit(); }
+    }
+    if (e.key === "Escape" && document.querySelector(".modal")) closeModal();
+  });
+
+  document.getElementById("fq").addEventListener("input", function(e){ filter.q = e.target.value; renderList(); });
+  document.getElementById("fd").addEventListener("change", function(e){ filter.d = e.target.value; renderList(); });
+  document.getElementById("fk").addEventListener("click", function(e){
+    filter.k = !filter.k;
+    e.currentTarget.classList.toggle("on", filter.k);
+    e.currentTarget.setAttribute("aria-pressed", filter.k ? "true" : "false");
+    renderList();
+  });
+
+  document.getElementById("expPdf").addEventListener("click", savePdf);
+  document.getElementById("bkSave").addEventListener("click", saveBackup);
+  const bkFile = document.getElementById("bkFile");
+  document.getElementById("bkLoad").addEventListener("click", function(){ bkFile.click(); });
+  bkFile.addEventListener("change", function(){
+    const f = bkFile.files && bkFile.files[0];
+    bkFile.value = "";                     /* 同じファイルをもう一度選べるようにする */
+    if (f) restoreBackup(f);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    const t = totals();
+    openModal('<h2>今年のデータを全消去</h2>' +
+      '<div class="warnbox">現在 <b>' + t.count + '件・' + yen(t.all) + '円</b> が登録されています。<br>' +
+      '消去すると元に戻せません。先にバックアップを保存してください。</div>' +
+      '<div class="dbtns"><button class="dbtn" id="bkPdf">PDFで保存<small>印刷・閲覧用</small></button>' +
+      '<button class="dbtn" id="bkJson">バックアップを保存<small>あとで復元できます</small></button></div>' +
+      '<div class="sheet-btns"><button class="b-ghost" data-close="1">やめる</button>' +
+      '<button class="b-primary" id="doReset">全消去して新年度を開始</button></div>',
+      function(root){
+        root.querySelector("#bkPdf").addEventListener("click", savePdf);
+        root.querySelector("#bkJson").addEventListener("click", saveBackup);
+        root.querySelector("#doReset").addEventListener("click", function(){
+          closeModal();
+          confirmBox("本当に全" + t.count + "件を消去しますか？", "消去する", function(){
+            records = []; seq = 1; nextRno = ""; save();
+            renderTotals(); renderList(); renderRecent(); resetForm(false);
+            flash("データを消去しました");
+          });
+        });
+      });
+  });
+
+  document.getElementById("restoreDist").addEventListener("click", function(){
+    const n = hiddenD.length + purgedD.length + hiddenN.length + purgedN.length;
+    let c = 0;
+    Object.keys(customD).forEach(function(k){ c += (customD[k] || []).length; });
+    Object.keys(customN).forEach(function(k){ c += (customN[k] || []).length; });
+    confirmBox("削除した地区・ご芳名 " + n + "件を元に戻し、追加した " + c + "件を消します。<br>登録済みの御花のデータには影響しません。",
+      "初期状態に戻す", function(){
+        restoreDistricts();
+        customD = {}; saveCustom();
+        restoreNames();
+        if (entryPicker) entryPicker.reset();
+        renderCands();
+        flash("地区リストを初期状態に戻しました");
+      });
+  });
+
+  document.getElementById("startPractice").addEventListener("click", function(){
+    setMode("practice");
+    switchTab("entry");
+    flash("練習モードを開始しました");
+  });
+  document.getElementById("exitPractice").addEventListener("click", function(){
+    setMode("live"); switchTab("entry"); flash("本番モードに戻りました");
+  });
+
+  window.addEventListener("beforeunload", save);
+  setMode("live");
+  renderBar();
+}
+let started = false;
+function boot(){ if (started) return; started = true; init(); }
+document.addEventListener("DOMContentLoaded", boot);
+if (document.readyState !== "loading") boot();
+
+/* 一度開けば電波のない場所でも起動できるようにする（https で開いたときだけ有効） */
+if ("serviceWorker" in navigator && location.protocol === "https:"){
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+</script>
+
+</body>
+</html>
