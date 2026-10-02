@@ -377,6 +377,23 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
   <!-- ============ 受付 ============ -->
   <main id="view-entry">
     <section class="step">
+      <div class="rnorow">
+        <span class="rlbl">領収番号</span>
+        <button type="button" id="rnoMinus" aria-label="ひとつ戻す">−</button>
+        <input id="rno" type="text" inputmode="numeric" autocomplete="off" placeholder="なし" aria-label="領収番号">
+        <button type="button" id="rnoPlus" aria-label="ひとつ進める">＋</button>
+      </div>
+    </section>
+
+    <section class="step">
+      <button class="kag" id="kagBtn" aria-pressed="false">
+        <span class="box">✓</span>
+        <span class="tx">神楽団御花</span>
+        <span class="sub">備考に「※神楽団御花」<br>通常御花からは除外</span>
+      </button>
+    </section>
+
+    <section class="step">
       <div class="step-head"><span class="step-no num">1</span><b>地区</b>
 </div>
       <div class="search" id="dsearch">
@@ -442,23 +459,6 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
           <button class="fn done" data-k="ok" style="grid-column:1/-1">この金額にする</button>
         </div>
       </div>
-    </section>
-
-    <section class="step">
-      <div class="rnorow">
-        <span class="rlbl">領収番号</span>
-        <button type="button" id="rnoMinus" aria-label="ひとつ戻す">−</button>
-        <input id="rno" type="text" inputmode="numeric" autocomplete="off" placeholder="なし" aria-label="領収番号">
-        <button type="button" id="rnoPlus" aria-label="ひとつ進める">＋</button>
-      </div>
-    </section>
-
-    <section class="step">
-      <button class="kag" id="kagBtn" aria-pressed="false">
-        <span class="box">✓</span>
-        <span class="tx">神楽団御花</span>
-        <span class="sub">備考に「※神楽団御花」<br>通常御花からは除外</span>
-      </button>
     </section>
 
     <div class="recent hidden" id="recent">
