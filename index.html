@@ -1964,7 +1964,7 @@ function renderArchives(){
     b.type = "button"; b.className = "row";
     b.innerHTML = '<span class="mid"><span class="nm">' + esc(yearLabel(a.year)) + '</span>' +
       '<span class="dt">' + (a.fest ? esc(festLabel(a.fest)) + '　' : '') + t.count + '件（通常' + t.normalCount + '件・神楽団' + t.kaguraCount + '件）</span></span>' +
-      '<span class="am">' + yen(t.all) + '</span><span class="chev">›</span>';
+      '<span class="am">' + yen(t.all) + '円</span><span class="chev">›</span>';
     b.addEventListener("click", function(){ viewArchive(a); });
     box.appendChild(b);
   });
