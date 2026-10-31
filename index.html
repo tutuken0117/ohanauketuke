@@ -313,6 +313,7 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
 .dbtn.wide{grid-column:1/-1}
 .saveinfo{margin-top:10px;font-size:11.5px;color:var(--ink3);text-align:center}
 .archnone{font-size:12.5px;color:var(--ink3);line-height:1.6}
+.archdate{margin:-6px 0 10px;font-size:13.5px;font-weight:700;color:var(--ink2)}
 .archsum{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;background:var(--surface);border-radius:10px;
   padding:10px 12px;margin-bottom:10px}
 .archsum span{display:block;font-size:11px;letter-spacing:.1em;color:var(--ink3);font-weight:700}
@@ -484,6 +485,7 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
 
     <div class="datasec">
       <h3>データ</h3>
+      <div class="f"><label for="fest">お祭りの日（PDFに印字）</label><input id="fest" type="date"></div>
       <div class="dbtns">
         <button class="dbtn wide" id="expPdf">PDFで保存<small>番号・地区名・ご芳名・金額・備考＋集計を印字</small></button>
         <button class="dbtn wide" id="closeYear">受付を締めて保存<small>年度を付けてアプリ内に残します（バックアップも選べます）</small></button>
@@ -840,16 +842,18 @@ let editName = false;
 let padVal = "";
 let filter = {q:"", d:"", k:false, asc:false};
 let lastToastTimer = null;
+let fest = "";           /* お祭りの日（YYYY-MM-DD）。PDFに印字する */
 
 const storeKey = function(){ return mode === "practice" ? KEY_PRACTICE : KEY_LIVE; };
 
 function save(){
   try{
-    localStorage.setItem(storeKey(), JSON.stringify({v:1, seq:seq, records:records, rno:nextRno, at:Date.now()}));
+    localStorage.setItem(storeKey(), JSON.stringify({v:1, seq:seq, records:records, rno:nextRno, fest:fest, at:Date.now()}));
     stampSave(true);
   }catch(e){ stampSave(false); }
 }
 function load(){
+  fest = "";
   records = []; seq = 1; nextRno = "";
   try{
     const raw = localStorage.getItem(storeKey());
@@ -860,6 +864,7 @@ function load(){
         records.forEach(function(r){ if (typeof r.rno !== "string") r.rno = ""; });
         seq = o.seq || (records.length + 1);
         nextRno = typeof o.rno === "string" ? o.rno : "";
+        fest = typeof o.fest === "string" ? o.fest : "";
       }
     }
   }catch(e){ records = []; }
@@ -891,6 +896,17 @@ function totals(list){                  /* 引数なし＝受付中のデータ 
   return {all:all, kagura:kag, normal:all - kag, count:rs.length, kaguraCount:kagN, normalCount:rs.length - kagN};
 }
 const yen = function(n){ return Number(n||0).toLocaleString("ja-JP"); };
+/* ご芳名の表示用。データには「様」を付けずに持つ */
+function sama(n){ n = String(n); return /様$/.test(n) ? n : n + " 様"; }
+function isoDate(d){ return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+/* "2026-10-31" → "2026年10月31日（土）" */
+function festLabel(s){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+  if (!m) return "";
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return m[1] + "年" + (+m[2]) + "月" + (+m[3]) + "日（" + "日月火水木金土"[d.getDay()] + "）";
+}
+function festYear(s){ const m = /^(\d{4})-/.exec(s || ""); return m ? +m[1] : 0; }
 
 function renderTotals(){
   const t = totals();
@@ -1391,8 +1407,8 @@ function renderBar(){
   if (draft.name){
     nm.classList.remove("empty");
     nm.innerHTML = draft.dist
-      ? ('<span class="dt">' + esc(draft.dist) + '</span>　' + esc(draft.name))
-      : ('<span class="dt" style="color:var(--shu)">地区を選んでください</span>　' + esc(draft.name));
+      ? ('<span class="dt">' + esc(draft.dist) + '</span>　' + esc(sama(draft.name)))
+      : ('<span class="dt" style="color:var(--shu)">地区を選んでください</span>　' + esc(sama(draft.name)));
   } else {
     nm.classList.add("empty");
     nm.textContent = "ご芳名を選んでください";
@@ -1433,6 +1449,7 @@ function submit(){
                rno:String(document.getElementById("rno").value || "").trim()};
   nextRno = rec.rno;                         /* 領収番号は領収書の束の番号。束を替えるまで同じ番号を引き継ぐ */
   records.push(rec);
+  if (!fest) fest = isoDate(new Date());     /* 最初に登録した日をお祭りの日とする（一覧タブで変更できる） */
   const learned = (mode === "live") && learnName(rec.dist, rec.name);   /* 練習モードでは名簿を増やさない */
   if (learned) rec.learned = true;
   save(); renderTotals(); renderRecent(); renderList();
@@ -1480,7 +1497,7 @@ function setKag(on){
 function toast(rec, learned){
   const t = document.getElementById("toast");
   t.innerHTML = '<div><div class="t1">登録しました　No.' + records.length + '</div>' +
-    '<div class="t2">' + esc(rec.dist) + '　' + esc(rec.name) + '　' + yen(rec.amt) + '円' +
+    '<div class="t2">' + esc(rec.dist) + '　' + esc(sama(rec.name)) + '　' + yen(rec.amt) + '円' +
     (rec.kagura ? '　※神楽団' : '') + '</div></div>' +
     '<button id="undoBtn">取り消す</button>';
   t.classList.remove("hidden");
@@ -1506,9 +1523,9 @@ function renderRecent(){
     const d = document.createElement("div");
     d.className = "recent-row";
     d.innerHTML = '<span class="no">' + no + '</span>' +
-      '<span class="nm">' + esc(r.dist) + '　' + esc(r.name) + '</span>' +
+      '<span class="nm">' + esc(r.dist) + '　' + esc(sama(r.name)) + '</span>' +
       (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
-      '<span class="am">' + yen(r.amt) + '</span>';
+      '<span class="am">' + yen(r.amt) + '円</span>';
     const b = document.createElement("button");
     b.className = "edit"; b.type = "button"; b.textContent = "修正";
     b.addEventListener("click", function(){ editRecord(r.id); });
@@ -1597,6 +1614,8 @@ function endDrag(e){
 }
 
 function renderList(){
+  const fe = document.getElementById("fest");
+  if (fe && document.activeElement !== fe) fe.value = fest;
   refreshDistFilter();
   const box = document.getElementById("rows");
   const info = document.getElementById("listInfo");
@@ -1617,10 +1636,10 @@ function renderList(){
     b.type = "button"; b.className = "row";
     b.dataset.id = r.id;
     b.innerHTML = '<span class="no">' + v.no + '</span>' +
-      '<span class="mid"><span class="nm">' + esc(r.name) + '</span>' +
+      '<span class="mid"><span class="nm">' + esc(sama(r.name)) + '</span>' +
       '<span class="dt">' + (r.rno ? "領収 " + esc(r.rno) + "　" : "") + esc(r.dist) + '</span></span>' +
       (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
-      '<span class="am">' + yen(r.amt) + '</span>' +
+      '<span class="am">' + yen(r.amt) + '円</span>' +
       '<span class="handle" aria-label="押したまま上下に動かすと並べ替え">☰</span>';
     b.addEventListener("click", function(){
       if (Date.now() - dragEndAt < 250) return;      /* 並べ替え直後の誤タップを防ぐ */
@@ -1688,7 +1707,7 @@ function editRecord(id){
           flash("No." + no + " を修正しました");
         });
         root.querySelector("#eDel").addEventListener("click", function(){
-          confirmBox("No." + no + "「" + esc(r.dist) + "　" + esc(r.name) + "　" + yen(r.amt) + "円」を削除します。<br>この操作は取り消せません。",
+          confirmBox("No." + no + "「" + esc(r.dist) + "　" + esc(sama(r.name)) + "　" + yen(r.amt) + "円」を削除します。<br>この操作は取り消せません。",
             "削除する", function(){
               const i = records.indexOf(r);
               if (i >= 0) records.splice(i, 1);
@@ -1719,14 +1738,14 @@ function editRecord(id){
 /* =========================== PDF出力 =========================== */
 function rowsForExport(recs){
   return recs.map(function(r, i){
-    return [i + 1, r.dist, r.name, r.amt, r.kagura ? KAGURA_NOTE : "", r.rno || ""];
+    return [i + 1, r.dist, sama(r.name), r.amt, r.kagura ? KAGURA_NOTE : "", r.rno || ""];
   });
 }
 
 /* A4縦（595.28×841.89pt）を2倍解像度のcanvasに描き、画像としてPDFに埋め込む。
    端末のフォントで描画するため、どんな漢字・記号でも文字化けしない。 */
 const PW = 1190, PH = 1684, ML = 70, MR = 1120;
-function drawPage(rows, pageNo, pageCount, t, year){
+function drawPage(rows, pageNo, pageCount, t, year, fest){
   const c = document.createElement("canvas");
   c.width = PW; c.height = PH;
   const g = c.getContext("2d");
@@ -1735,14 +1754,12 @@ function drawPage(rows, pageNo, pageCount, t, year){
   g.fillStyle = "#000"; g.textBaseline = "alphabetic";
   let y;
   if (pageNo === 1){
-    const d = new Date();
     g.font = "700 46px " + JP;
     g.fillText("御神前・御花一覧", ML, 100);
     g.font = "400 24px " + JP; g.fillStyle = "#444";
     g.fillText("伊勢神社　秋季奉納神楽　" + yearLabel(year), ML, 142);
     g.textAlign = "right";
-    g.fillText("出力 " + d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " +
-               String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), MR, 142);
+    if (fest) g.fillText("奉納日　" + festLabel(fest), MR, 142);
     g.textAlign = "left";
     /* 集計欄 */
     g.strokeStyle = "#000"; g.lineWidth = 2;
@@ -1789,7 +1806,7 @@ function drawPage(rows, pageNo, pageCount, t, year){
     g.font = "600 25px " + JP;
     g.fillText(fit(g, r[2], 360), X_NM, ry);
     g.font = "400 24px " + JP;
-    g.textAlign = "right"; g.fillText(Number(r[3]).toLocaleString("ja-JP"), X_AM, ry);
+    g.textAlign = "right"; g.fillText(Number(r[3]).toLocaleString("ja-JP") + " 円", X_AM, ry);
     g.textAlign = "left"; g.font = "400 20px " + JP;
     if (r[4]) g.fillText(r[4], X_RM, ry);
     g.font = "400 24px " + JP;
@@ -1803,7 +1820,7 @@ function drawPage(rows, pageNo, pageCount, t, year){
     g.font = "700 26px " + JP; g.textAlign = "left";
     g.fillText("計", X_RN, ry + 30);
     g.textAlign = "right";
-    g.fillText(t.all.toLocaleString("ja-JP"), X_AM, ry + 30);
+    g.fillText(t.all.toLocaleString("ja-JP") + " 円", X_AM, ry + 30);
     g.textAlign = "left";
   }
   g.textAlign = "center"; g.fillStyle = "#666"; g.font = "400 20px " + JP;
@@ -1823,7 +1840,7 @@ function jpegBytes(canvas){
   for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
   return u;
 }
-function buildPdf(recs, year){
+function buildPdf(recs, year, fest){
   const all = rowsForExport(recs), t = totals(recs);
   const FIRST = 30, REST = 37;
   const pages = [];
@@ -1833,7 +1850,7 @@ function buildPdf(recs, year){
     pages.push(all.slice(i, i + n));
     i += n;
   }
-  const imgs = pages.map(function(rows, idx){ return jpegBytes(drawPage(rows, idx + 1, pages.length, t, year)); });
+  const imgs = pages.map(function(rows, idx){ return jpegBytes(drawPage(rows, idx + 1, pages.length, t, year, fest)); });
 
   const latin = function(str){
     const u = new Uint8Array(str.length);
@@ -1878,13 +1895,12 @@ function fname(prefix, ext){
   const p = function(n){ return String(n).padStart(2, "0"); };
   return prefix + "_" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + ext;
 }
-/* 引数なし＝受付中のデータ。過去の記録は (その年の登録, 年度) を渡す */
-async function savePdf(recs, year){
-  recs = recs || records;
-  year = year || new Date().getFullYear();
+/* 引数なし＝受付中のデータ。過去の記録は (その年の登録, 年度, お祭りの日) を渡す */
+async function savePdf(recs, year, fs){
+  if (!recs){ recs = records; fs = fest; year = festYear(fest) || new Date().getFullYear(); }
   if (!recs.length){ alertBox("登録データがありません"); return; }
   let data;
-  try{ data = buildPdf(recs, year); }
+  try{ data = buildPdf(recs, year, fs || ""); }
   catch(e){ alertBox("PDFを作成できませんでした：" + e.message); return; }
   await saveFile(fname("御花一覧_" + year + "年", ".pdf"), data, "application/pdf");
 }
@@ -1947,7 +1963,7 @@ function renderArchives(){
     const b = document.createElement("button");
     b.type = "button"; b.className = "row";
     b.innerHTML = '<span class="mid"><span class="nm">' + esc(yearLabel(a.year)) + '</span>' +
-      '<span class="dt">' + t.count + '件（通常' + t.normalCount + '件・神楽団' + t.kaguraCount + '件）</span></span>' +
+      '<span class="dt">' + (a.fest ? esc(festLabel(a.fest)) + '　' : '') + t.count + '件（通常' + t.normalCount + '件・神楽団' + t.kaguraCount + '件）</span></span>' +
       '<span class="am">' + yen(t.all) + '</span><span class="chev">›</span>';
     b.addEventListener("click", function(){ viewArchive(a); });
     box.appendChild(b);
@@ -1960,12 +1976,13 @@ function viewArchive(a){
   const t = totals(a.records);
   const rows = a.records.map(function(r, i){
     return '<div class="row"><span class="no">' + (i + 1) + '</span>' +
-      '<span class="mid"><span class="nm">' + esc(r.name) + '</span>' +
+      '<span class="mid"><span class="nm">' + esc(sama(r.name)) + '</span>' +
       '<span class="dt">' + (r.rno ? "領収 " + esc(r.rno) + "　" : "") + esc(r.dist) + '</span></span>' +
       (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
-      '<span class="am">' + yen(r.amt) + '</span></div>';
+      '<span class="am">' + yen(r.amt) + '円</span></div>';
   }).join("");
   openModal('<h2>' + esc(yearLabel(a.year)) + ' の記録</h2>' +
+    (a.fest ? '<div class="archdate">奉納日　' + esc(festLabel(a.fest)) + '</div>' : '') +
     '<div class="archsum"><div><span>御花合計</span><b class="all">' + yen(t.all) + '円</b></div>' +
       '<div><span>通常</span><b>' + yen(t.normal) + '円</b></div>' +
       '<div><span>神楽団</span><b class="kg">' + yen(t.kagura) + '円</b></div>' +
@@ -1975,7 +1992,7 @@ function viewArchive(a){
       '<button class="b-primary" id="aPdf">PDFで保存</button>' +
       '<button class="b-danger" id="aReopen">この年度を受付中に戻して修正する</button></div>',
     function(root){
-      root.querySelector("#aPdf").addEventListener("click", function(){ savePdf(a.records, a.year); });
+      root.querySelector("#aPdf").addEventListener("click", function(){ savePdf(a.records, a.year, a.fest || ""); });
       root.querySelector("#aReopen").addEventListener("click", function(){
         if (mode !== "live"){ alertBox("練習モードでは使えません。本番に戻してから操作してください。"); return; }
         if (records.length){
@@ -1989,7 +2006,7 @@ function viewArchive(a){
             records = a.records.map(function(r, i){
               return {id:i + 1, dist:r.dist, name:r.name, amt:r.amt, kagura:!!r.kagura, rno:r.rno || ""};
             });
-            seq = records.length + 1; nextRno = "";
+            seq = records.length + 1; nextRno = ""; fest = a.fest || "";
             save(); renderTotals(); renderList(); renderRecent(); renderArchives(); resetForm(false);
             flash(yearLabel(a.year) + " を受付中に戻しました");
           });
@@ -2005,8 +2022,9 @@ function closeYear(){
   openModal('<h2>受付を締めて保存</h2>' +
     '<div class="warnbox">現在の <b>' + t.count + '件・' + yen(t.all) + '円</b> に年度を付けてこの端末に残し、' +
       '次の年の受付を始められるよう受付中のデータを空にします。<br>残した記録は「過去の記録」からいつでも見られます。</div>' +
+    '<div class="f"><label>お祭りの日（PDFに印字）</label><input id="cyF" type="date" value="' + esc(fest) + '"></div>' +
     '<div class="f"><label>年度（西暦）</label>' +
-      '<input id="cyY" type="tel" inputmode="numeric" maxlength="4" value="' + new Date().getFullYear() + '"></div>' +
+      '<input id="cyY" type="tel" inputmode="numeric" maxlength="4" value="' + (festYear(fest) || new Date().getFullYear()) + '"></div>' +
     '<div class="cywa" id="cyW"></div>' +
     '<div class="sheet-btns">' +
       '<button class="b-primary" id="cyBk" style="grid-column:1/-1">端末に保存して、バックアップも取る</button>' +
@@ -2015,7 +2033,8 @@ function closeYear(){
     '<div class="cyhint">バックアップは一覧のPDFです。共有画面が開いたら「"ファイル"に保存」→ OneDrive →' +
       '「個人ファイル › 伊勢神社役員」の中の、その年のフォルダを選んでください。</div>',
     function(root){
-      const inp = root.querySelector("#cyY"), wl = root.querySelector("#cyW");
+      const inp = root.querySelector("#cyY"), wl = root.querySelector("#cyW"), fi = root.querySelector("#cyF");
+      fi.addEventListener("change", function(){ const fy = festYear(fi.value); if (fy){ inp.value = fy; show(); } });
       const yearOf = function(){
         const y = parseInt(String(inp.value).replace(/[^0-9]/g, ""), 10);
         return (y >= 1989 && y <= 2100) ? y : 0;
@@ -2025,17 +2044,18 @@ function closeYear(){
       const finish = function(backup){
         const y = yearOf();
         if (!y) return;
+        if (fi.value && fi.value !== fest){ fest = fi.value; save(); }
         const old = archives.filter(function(x){ return x.year === y; })[0];
         const run = function(){
-          const keep = archives, recs = records.slice();
+          const keep = archives, recs = records.slice(), fs = fest;
           archives = archives.filter(function(x){ return x.year !== y; })
-            .concat([{year:y, records:recs, at:Date.now()}])
+            .concat([{year:y, fest:fs, records:recs, at:Date.now()}])
             .sort(function(p, q){ return q.year - p.year; });
           if (!saveArch()){ archives = keep; alertBox("保存できませんでした。PDFで保存してから、もう一度お試しください。"); return; }
-          records = []; seq = 1; nextRno = "";
+          records = []; seq = 1; nextRno = ""; fest = "";
           save(); closeModal(); renderTotals(); renderList(); renderRecent(); renderArchives(); resetForm(false);
           flash(yearLabel(y) + " として保存しました");
-          if (backup) savePdf(recs, y);     /* 端末への保存が済んでから、バックアップ用のPDFを書き出す */
+          if (backup) savePdf(recs, y, fs);     /* 端末への保存が済んでから、バックアップ用のPDFを書き出す */
         };
         if (old){
           confirmBox("すでに " + esc(yearLabel(y)) + " の記録（" + old.records.length + "件）があります。<br>" +
@@ -2217,6 +2237,7 @@ function init(){
 
   document.getElementById("expPdf").addEventListener("click", function(){ savePdf(); });
   document.getElementById("closeYear").addEventListener("click", closeYear);
+  document.getElementById("fest").addEventListener("change", function(e){ fest = e.target.value || ""; save(); });
 
   document.getElementById("startPractice").addEventListener("click", function(){
     setMode("practice");
