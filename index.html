@@ -157,11 +157,13 @@ main{padding:7px 10px calc(var(--bar-h) + 12px)}
 .rnorow input:focus{outline:none;border-color:var(--shu);box-shadow:0 0 0 3px var(--shu-soft)}
 #fsort{flex:0 0 auto}
 .howto{display:block;font-weight:600;color:var(--ink3);margin-top:3px}
-.row .handle{flex:0 0 auto;font-size:21px;color:var(--ink3);line-height:1;touch-action:none;cursor:grab;
-  padding:14px 8px 14px 12px;margin:-14px -4px -14px 0;border-radius:8px}
-.row .handle:active{background:var(--surface2);color:var(--ink)}
-.row.dragging{background:var(--shu-soft);box-shadow:0 6px 16px rgba(0,0,0,.22);position:relative;z-index:5;
-  border-radius:8px;outline:2px solid var(--shu)}
+.row .editb{flex:0 0 auto;border:1px solid var(--line-strong);border-radius:7px;background:var(--paper);
+  padding:8px 10px;font-size:12.5px;font-weight:700;color:var(--ink2)}
+.row:active .editb{background:var(--surface2)}
+.dgrid button.stop{background:var(--paper);border:1.5px dashed var(--shu);color:var(--shu-dark)}
+.dgrid button.stop.on{background:var(--ink);border:1.5px solid var(--ink);color:var(--paper)}
+.cand.on{background:var(--shu-soft);box-shadow:inset 3px 0 0 var(--shu)}
+#eC{max-height:236px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .bar-amt .rno{margin-left:6px;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:5px;
   background:var(--ink);color:#fff}
 .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -736,30 +738,33 @@ function customGroupOf(v){                       /* 追加した地区ならそ�
 
 /* ---- 選択ツリーを組み立てる（葉のvalueがそのまま地区名になる） ---- */
 function leaf(label, value, sub){ return {label:label, value:value, sub2:sub||""}; }
+/* その階層で止めるためのボタン（この先がわからないとき用） */
+function stopLeaf(value){ return {label:"ここで決定：" + value, value:value, sub2:"", stop:true}; }
 function cityNode(c, areas){
   if (!areas.length) return leaf(c, c);
-  return {label:c, kids:[leaf("（市町名まで）", c)].concat(areas.map(function(a){ return leaf(a, c + a); }))};
+  return {label:c, kids:[stopLeaf(c)].concat(areas.map(function(a){ return leaf(a, c + a); }))};
 }
 const TREE = KOSHI.map(function(d){ return leaf(d, d); }).concat([
-  {label:"町内", nav:true, kids: [leaf("（町内まで）", "町内")].concat(TOWN_GROUPS.map(function(x){
+  {label:"町内", nav:true, kids: [stopLeaf("町内")].concat(TOWN_GROUPS.map(function(x){
       const base = x.g.replace(/^旧/, "").replace(/[村町]$/, "");   /* 旧筒賀村 → 筒賀 */
       return {label:x.g, kidsFn:function(){
-        return [leaf("（" + base + "まで）", base)]
+        return [stopLeaf(base)]
           .concat(x.places.map(function(p){ return leaf(p, p); }))
           .concat((customD[x.g] || []).map(function(p){ return leaf(p, p); }))
           .concat([{label:"＋ 追加", free:"例）本郷", group:x.g}]);
       }};
     }))},
   {label:"町外", nav:true, kids:[
-      leaf("（町外まで）", "町外"),
-      {label:"広島市", kids: HIROSHIMA_WARDS.map(function(x){
+      stopLeaf("町外"),
+      {label:"広島市", kids: [stopLeaf("広島市")].concat(HIROSHIMA_WARDS.map(function(x){
           if (!x.areas.length) return leaf(x.w, "広島市" + x.w);
-          return {label:x.w, kids:[leaf("（区名まで）", "広島市" + x.w)].concat(
+          return {label:x.w, kids:[stopLeaf("広島市" + x.w)].concat(
             x.areas.map(function(a){ return leaf(a, "広島市" + x.w + a); }))};
-        })}
+        }))}
     ].concat(NEAR_CITIES.map(function(x){ return cityNode(x.c, x.areas); }), [
       {label:"それ以外", kids:[
-        {label:"県内", kids: KENNAI.map(function(x){ return cityNode(x.c, x.areas); })},
+        stopLeaf("町外"),
+        {label:"県内", kids: [stopLeaf("広島県内")].concat(KENNAI.map(function(x){ return cityNode(x.c, x.areas); }))},
         {label:"県外", free:"例）島根県益田市"}
       ]},
       {label:"一覧にない", free:"例）〇〇市〇〇町"}
@@ -1115,7 +1120,7 @@ function makePicker(grid, cap, getCurrent, onPick, opts){
     const ns = ed ? all : all.filter(function(n){ return !(n.value && isHidden(n.value)); });
     grid.innerHTML = "";
     let maxLen = 0;
-    ns.forEach(function(n){ maxLen = Math.max(maxLen, n.label.length + ((n.kids || n.kidsFn || n.free) ? 2 : 0)); });
+    ns.forEach(function(n){ if (n.stop) return; maxLen = Math.max(maxLen, n.label.length + ((n.kids || n.kidsFn || n.free) ? 2 : 0)); });
     grid.className = "dgrid" + ((maxLen <= 8 && ns.length >= 5) ? " g3" : "");
     if (ed){
       const note = document.createElement("div");
@@ -1134,6 +1139,8 @@ function makePicker(grid, cap, getCurrent, onPick, opts){
         mk(n.label + " ›", "", "nav", function(){ path.push(n); render(); });
       } else if (n.free){
         if (!ed) mk(n.label + " ›", "", "nav", function(){ path.push(n); freeInput(n); });
+      } else if (n.stop && ed){
+        return;                                   /* 「ここで決定」は消す対象にしない */
       } else if (ed){
         const gone = isHidden(n.value);
         const protectedOne = KOSHI.indexOf(n.value) >= 0;
@@ -1147,7 +1154,9 @@ function makePicker(grid, cap, getCurrent, onPick, opts){
       } else {
         const on = (cur === n.value);
         if (on) shown = true;
-        mk(n.label, n.sub2, on ? "on" : "", function(){ onPick(on ? null : n.value); });
+        const sb = mk(n.label, n.stop ? "この先がわからないときは、ここで決定" : n.sub2,
+                      (n.stop ? "stop " : "") + (on ? "on" : ""), function(){ onPick(on ? null : n.value); });
+        if (n.stop) sb.style.gridColumn = "1/-1";
       }
     });
     if (ed){
@@ -1557,68 +1566,6 @@ function refreshDistFilter(){
   if (!sel.value) filter.d = "";
 }
 
-let dragState = null;
-let dragEndAt = 0;
-
-/* 一覧のドラッグ並べ替え（☰ を起点にいつでも可能） */
-function startDrag(e, row, box){
-  e.preventDefault();
-  e.stopPropagation();
-  row.classList.add("dragging");
-  dragState = {row:row, box:box, pid:e.pointerId, edge:0, raf:0};
-  /* 行をDOM内で動かすとポインタ捕捉が外れるため、documentで受ける */
-  document.addEventListener("pointermove", moveDrag, {passive:false});
-  document.addEventListener("pointerup", endDrag);
-  document.addEventListener("pointercancel", endDrag);
-  document.body.style.touchAction = "none";
-  const step = function(){
-    if (!dragState) return;
-    if (dragState.edge) window.scrollBy(0, dragState.edge);
-    dragState.raf = requestAnimationFrame(step);
-  };
-  dragState.raf = requestAnimationFrame(step);
-}
-function moveDrag(e){
-  if (!dragState || e.pointerId !== dragState.pid) return;
-  e.preventDefault();
-  const box = dragState.box, row = dragState.row, y = e.clientY;
-  const others = Array.prototype.filter.call(box.children, function(c){ return c !== row; });
-  let after = null;
-  for (let i = 0; i < others.length; i++){
-    const r = others[i].getBoundingClientRect();
-    if (y < r.top + r.height / 2){ after = others[i]; break; }
-  }
-  if (after){ if (after.previousSibling !== row) box.insertBefore(row, after); }
-  else if (box.lastChild !== row) box.appendChild(row);
-  dragState.edge = (y < 150) ? -14 : (y > window.innerHeight - 170 ? 14 : 0);
-}
-function endDrag(e){
-  if (!dragState) return;
-  if (e && e.pointerId !== dragState.pid) return;
-  document.removeEventListener("pointermove", moveDrag, {passive:false});
-  document.removeEventListener("pointerup", endDrag);
-  document.removeEventListener("pointercancel", endDrag);
-  document.body.style.touchAction = "";
-  cancelAnimationFrame(dragState.raf);
-  dragState.row.classList.remove("dragging");
-  const box = dragState.box;
-  dragState = null;
-  dragEndAt = Date.now();
-
-  /* 画面に見えている行の新しい並び順を、records 本体に反映する。
-     絞り込み中でも、見えている行が占めていた位置だけを入れ替える。 */
-  let ids = Array.prototype.map.call(box.children, function(c){ return Number(c.dataset.id); });
-  if (!filter.asc) ids = ids.slice().reverse();      /* 新しい順表示は逆向き */
-  const map = {};
-  records.forEach(function(r){ map[r.id] = r; });
-  const slots = [];
-  records.forEach(function(r, i){ if (ids.indexOf(r.id) >= 0) slots.push(i); });
-  slots.forEach(function(idx, k){ if (map[ids[k]]) records[idx] = map[ids[k]]; });
-
-  save(); renderList(); renderRecent(); renderTotals();
-  flash("並び順を変更しました");
-}
-
 function renderList(){
   const fe = document.getElementById("fest");
   if (fe && document.activeElement !== fe) fe.value = fest;
@@ -1646,14 +1593,8 @@ function renderList(){
       '<span class="dt">' + (r.kagura ? '<span class="kgb">神楽団</span>' : '') +
         (r.rno ? "領収 " + esc(r.rno) + "　" : "") + esc(r.dist) + '</span></span>' +
       '<span class="am">' + yen(r.amt) + '円</span>' +
-      '<span class="handle" aria-label="押したまま上下に動かすと並べ替え">☰</span>';
-    b.addEventListener("click", function(){
-      if (Date.now() - dragEndAt < 250) return;      /* 並べ替え直後の誤タップを防ぐ */
-      editRecord(r.id);
-    });
-    const h = b.querySelector(".handle");
-    h.addEventListener("pointerdown", function(e){ startDrag(e, b, box); });
-    h.addEventListener("click", function(e){ e.stopPropagation(); e.preventDefault(); });
+      '<span class="editb">編集</span>';
+    b.addEventListener("click", function(){ editRecord(r.id); });
     box.appendChild(b);
   });
   const t = totals();
@@ -1661,7 +1602,7 @@ function renderList(){
   info.innerHTML = records.length
     ? ("表示 " + view.length + "件／" + yen(sum) + "円　（全" + t.count + "件　通常" + t.normalCount +
        "件・神楽団" + t.kaguraCount + "件）" +
-       '<span class="howto">行をタップで修正　／　<b>☰</b> を押したまま上下で並べ替え</span>')
+       '<span class="howto">「編集」または行をタップすると修正できます</span>')
     : "";
   empty.classList.toggle("hidden", records.length > 0);
   box.classList.toggle("hidden", view.length === 0);
@@ -1678,7 +1619,8 @@ function editRecord(id){
       '<h2>No.' + no + ' を修正</h2>' +
       '<div class="f"><label>地区名</label>' +
         '<button type="button" class="distbtn" id="eD">' + esc(cur.dist) + '<small>タップして選び直す ›</small></button></div>' +
-      '<div class="f"><label>ご芳名</label><input id="eN" value="' + esc(cur.name) + '"></div>' +
+      '<div class="f"><label>ご芳名</label><input id="eN" value="' + esc(cur.name) + '" autocomplete="off">' +
+        '<div id="eC" class="cands hidden"></div></div>' +
       '<div class="f"><label>金額（円）</label><input id="eA" type="tel" inputmode="numeric" value="' + cur.amt + '"></div>' +
       '<div class="f"><label>領収番号</label><input id="eR" value="' + esc(cur.rno) + '" placeholder="なし"></div>' +
       '<button class="kag' + (cur.kagura ? " on" : "") + '" id="eK" style="width:100%">' +
@@ -1695,6 +1637,31 @@ function editRecord(id){
           cur.rno = root.querySelector("#eR").value.trim();
         };
         root.querySelector("#eD").addEventListener("click", function(){ grab(); pick(); });
+        /* 受付と同じように、選んでいる地区のご芳名を候補として出す（押すとその名前が入る） */
+        const nIn = root.querySelector("#eN"), cBox = root.querySelector("#eC");
+        let typed = false;
+        const renderEC = function(){
+          const q = typed ? norm(nIn.value) : "";
+          const list = activeRoster(false).filter(function(p){
+            return p.dist === cur.dist && (!q || norm(p.name).indexOf(q) >= 0 || (p.yomi && norm(p.yomi).indexOf(q) >= 0));
+          }).sort(function(a, b){ return b.hist - a.hist; }).slice(0, 15);
+          cBox.innerHTML = "";
+          cBox.classList.toggle("hidden", !list.length);
+          if (list.length){
+            const hd = document.createElement("div");
+            hd.className = "candhead"; hd.textContent = cur.dist + " のご芳名 — 押すと入ります";
+            cBox.appendChild(hd);
+          }
+          list.forEach(function(p){
+            const b = document.createElement("button");
+            b.type = "button"; b.className = "cand" + (p.name === nIn.value.trim() ? " on" : "");
+            b.innerHTML = '<span class="nm">' + esc(p.name) + '</span>';
+            b.addEventListener("click", function(){ nIn.value = p.name; cur.name = p.name; typed = false; renderEC(); });
+            cBox.appendChild(b);
+          });
+        };
+        nIn.addEventListener("input", function(){ typed = true; renderEC(); });
+        renderEC();
         const kb = root.querySelector("#eK");
         kb.addEventListener("click", function(){ cur.kagura = !cur.kagura; kb.classList.toggle("on", cur.kagura); });
         root.querySelector("#eSave").addEventListener("click", function(){
@@ -1732,9 +1699,10 @@ function editRecord(id){
       '<div class="dgrid" id="pkDg"></div>' +
       '<div class="sheet-btns"><button class="b-ghost" id="pkCancel" style="grid-column:1/-1">変更せずに戻る</button></div>',
       function(root){
-        makePicker(root.querySelector("#pkDg"), root.querySelector("#pkCap"),
+        const pk = makePicker(root.querySelector("#pkDg"), root.querySelector("#pkCap"),
           function(){ return cur.dist; },
-          function(d){ if (d) cur.dist = d; form(); }).render();
+          function(d){ if (d) cur.dist = d; form(); });
+        pk.goTo(cur.dist);                       /* 今の地区がある階層から開く */
         root.querySelector("#pkCancel").addEventListener("click", form);
       });
   }
